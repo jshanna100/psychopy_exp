@@ -24,11 +24,11 @@ def dcb2dec(dcb):
 
 def dcbexp2(data,direction=None):
     print(direction)
-    dcb = dec2dcb(np.abs(data))
+    dcb = dec2dcb(data)
     if direction==1:
         newdcb = dcb / 2
     elif direction==-1:
-        newdcb = (-70-dcb)/2
+        newdcb = dcb + (np.min(dcb)-dcb)/2
     print("new decibel: "+str(np.max(newdcb)))
     return dcb2dec(newdcb)*np.sign(data)
     
