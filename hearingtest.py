@@ -17,16 +17,20 @@ class SoundWrap():
         self.op_idx[side_idx] += 1
 
 def dec2dcb(dec):
-    return 20*np.log10(dec/np.sign(dec))
+    return 20*np.log10(np.abs(dec))
 
 def dcb2dec(dcb):
     return 10**(dcb/20)
 
-def dcbexp2(data,direction=1):
-    print(str(np.max(data))+"\t"+str(np.min(data)))
-    dcbdata = dec2dcb(data)
-    dcbdata -= dcbdata/2 * direction
-    return dcb2dec(dcbdata)*np.sign(data)
+def dcbexp2(data,direction=None):
+    print(direction)
+    dcb = dec2dcb(np.abs(data))
+    if direction==1:
+        newdcb = dcb / 2
+    elif direction==-1:
+        newdcb = (-70-dcb)/2
+    print("new decibel: "+str(np.max(newdcb)))
+    return dcb2dec(newdcb)*np.sign(data)
     
 
 sound_name_list = ["4000_cheby.wav"]
@@ -43,7 +47,7 @@ for sound_name in sound_name_list:
     aud_res = nptypes[sig.dtype]
     data = (np.tile(sig,(2,1))/aud_res).T
     # 0 values to infinitesimal values for dB calculations
-    data[data==0]=0.000001
+    #data[data==0]=0.000001
     sound_list.append(SoundWrap(sound_name,data,dcbexp2,op_num,aud_res))
     
 # randomise order of sounds
@@ -73,11 +77,8 @@ for sound_idx in np.nditer(reihenfolge):
                 if response:
                     break
             sounds[r].stop()
-            print(response)
             if key_presses[r] in response and key_presses[1-r] not in response:
                 accs[r].append(1)
-                print(key_presses[r])
-                print("hit")
             else:
                 accs[r].append(0)
             for f_idx in range(int(monitor_fps*0.5)):
@@ -88,10 +89,8 @@ for sound_idx in np.nditer(reihenfolge):
         for r_idx in range(accs.shape[0]):
             if accs[r_idx,].all(): # all correct, decrease volume
                 swr.operate(r_idx,direction=-1)
-                print("all correct")
             elif not accs[r_idx,].any(): # all false, increase
                 swr.operate(r_idx,direction=1)
-                print("all false")
                 
                 
 
