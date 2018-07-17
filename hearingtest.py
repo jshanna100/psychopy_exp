@@ -23,15 +23,26 @@ def dec2dcb(dec):
 def dcb2dec(dcb):
     return 10**(dcb/20)
 
+<<<<<<< HEAD
 def incr_dcb(data,dcb_delta=0,direction=-1):
     # if direction is 1, increase by requested decibels, if -1 decrease by same amount
     dcb = dec2dcb(np.abs(data))
+=======
+def dcbexp2(data,direction=None):
+    print(direction)
+    dcb = dec2dcb(data)
+>>>>>>> bb767889b17468147e6b3e78efa2ba21841224de
     if direction==1:
         newdcb = dcb + dcb_delta
     elif direction==-1:
+<<<<<<< HEAD
         newdcb = dcb - dcb_delta
     newdcb[newdcb<-160]=-160
     print("max: {} min: {}".format(np.max(newdcb),np.min(newdcb)))
+=======
+        newdcb = dcb + (np.min(dcb)-dcb)/2
+    print("new decibel: "+str(np.max(newdcb)))
+>>>>>>> bb767889b17468147e6b3e78efa2ba21841224de
     return dcb2dec(newdcb)*np.sign(data)
     
 
