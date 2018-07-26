@@ -1,6 +1,8 @@
 from psychopy import visual, event
-from psychopy.iohub.client.keyboard import Keyboard
 import numpy as np
+import pyglet
+
+''' TODO TODO TODO coordinate translation system is completely screwed up '''
 
 class CoordFlipper():
     def __init__(self,richtung=0):
@@ -59,13 +61,13 @@ class RatingBar():
     def __init__(self,win,pos,lng_sht,incr,decr_butts,incr_butts,conf_butts,orient="horizontal",midline_length=1,midline_pos=0,rval=0):
         richtung = 1 if orient=="vertical" else 0
         xyf = CoordFlipper(richtung=richtung)
-        r2a = Rel2Abs(pos,lng_sht)
+        r2a = Rel2Abs(pos,xyf(lng_sht))
         visobjs={}
-        visobjs["frame"]=VisObj(visual.Rect(win,units="norm",pos=xyf(pos),width=xyf(lng_sht)[0],height=xyf(lng_sht)[1],
+        visobjs["frame"]=VisObj(visual.Rect(win,units="norm",pos=pos,width=xyf(lng_sht)[0],height=xyf(lng_sht)[1],
           lineColor=(0,0,0)))
-        visobjs["valrect"]=VisObj(visual.Rect(win,units="norm",pos=xyf(pos),width=0,height=0,lineColor=(0,0,0)))
-        visobjs["midline"]=VisObj(visual.Line(win,xyf(r2a((midline_pos,midline_length))),
-          xyf(r2a((midline_pos,-midline_length))),lineColor=(0,0,0)))
+        visobjs["valrect"]=VisObj(visual.Rect(win,units="norm",pos=(0,0),width=0,height=0,lineColor=(0,0,0)))
+        visobjs["midline"]=VisObj(visual.Line(win,r2a((midline_pos,midline_length)),
+          r2a((midline_pos,-midline_length)),lineColor=(0,0,0)))
       
         self.visobjs = visobjs
         self.xyf = xyf
@@ -90,8 +92,7 @@ class RatingBar():
         elif new_val=="decr":
             new_val = self.rval - self.incr
         self.rval = new_val
-        print(new_val)
-        new_dim = xyf(r2a.resize((abs(new_val),1)))
+        new_dim = xyf(r2a.resize((abs(new_val),2)))
         self.visobjs["valrect"].visobj.width = new_dim[0]
         self.visobjs["valrect"].visobj.height = new_dim[1]
         self.visobjs["valrect"].visobj.pos = xyf(r2a((new_val,0)))
@@ -106,31 +107,31 @@ class RatingBar():
             
         
 class RBarVerkehr():
-    def __init__(self,RBarList,WinList,duration=-1,extra_vis=[]):
+    def __init__(self,RBarList,win,duration=-1,extra_vis=[]):
         self.RBarList = RBarList
         self.duration = duration
         self.extra_vis = extra_vis
-        self.WinList = WinList
+        self.win = win
     def go(self):
-        # first create list of relevant buttons for quick reference: list of lists; outer list corresponds to
+        key = pyglet.window.key
+        keyboard = key.KeyStateHandler()
+        self.win.winHandle.push_handlers(keyboard)
+        # create list of relevant buttons for quick reference: list of lists; outer list corresponds to
         # Rating Bars in order, and inner lists are 0 for decrease buttons, 1 for increase, and 2 for confirm for that bar
         butt_lists = [[rb.decr_butts,rb.incr_butts,rb.conf_butts] for rb in self.RBarList]
-        rates = np.zeros(len(self.RBarList)) # ratings stored here
+        rates = np.ones(len(self.RBarList))*np.nan # ratings stored here
         # check for all possible button presses and react accordingly
-        while not np.all(rates):
+        while np.any(np.isnan(rates)):
             for rb_idx,bl in enumerate(butt_lists):
-                if event.getKeys(bl[0]): # decrease
+                if any([keyboard[x] for x in bl[0]]) and self.RBarList[rb_idx].rval>-1: # decrease
                     self.RBarList[rb_idx].set_val("decr")
-                if event.getKeys(bl[1]): # increase
+                if any([keyboard[x] for x in bl[1]]) and self.RBarList[rb_idx].rval<1: # increase
                     self.RBarList[rb_idx].set_val("incr")
-                if event.getKeys(bl[2]): # confirm
+                if any([keyboard[x] for x in bl[2]]): # confirm
                     rates[rb_idx] = self.RBarList[rb_idx].confirm()
-                    print(rates)
-            event.clearEvents()
             for rb in self.RBarList:
                 rb.draw()
             for ev in self.extra_vis:
                 ev.draw()
-            for wl in self.WinList:
-                wl.flip()           
+            self.win.flip()
         return rates
