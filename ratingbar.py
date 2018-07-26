@@ -1,4 +1,5 @@
 from psychopy import visual, event
+from psychopy.iohub.client.keyboard import Keyboard
 import numpy as np
 
 class CoordFlipper():
@@ -24,12 +25,10 @@ class Rel2Abs():
         abpos = self.abpos
         lng_sht = self.lng_sht
         output = (abpos[0]+rel_xy[0]*lng_sht[0]/4,abpos[1]+rel_xy[1]*lng_sht[1]/4)
-        print(output)
         return output
     def resize(self,rel_size):
         lng_sht = self.lng_sht
         output = (rel_size[0]*lng_sht[0]/2,rel_size[1]*lng_sht[1]/2)
-        print(output)
         return output
 
 
@@ -89,8 +88,9 @@ class RatingBar():
         if new_val=="incr":
             new_val = self.rval + self.incr
         elif new_val=="decr":
-            new_val -= self.rval - self.incr
+            new_val = self.rval - self.incr
         self.rval = new_val
+        print(new_val)
         new_dim = xyf(r2a.resize((abs(new_val),1)))
         self.visobjs["valrect"].visobj.width = new_dim[0]
         self.visobjs["valrect"].visobj.height = new_dim[1]
@@ -101,21 +101,36 @@ class RatingBar():
             self.visobjs["valrect"].visobj.fillColor = (0,0,1)
         self.draw()
         
+    def confirm(self):
+        return self.rval
+            
+        
 class RBarVerkehr():
-    def __init__(RBarList,duration=-1,extra_vis=None):
+    def __init__(self,RBarList,WinList,duration=-1,extra_vis=[]):
         self.RBarList = RBarList
         self.duration = duration
-        self.extra_vis=extra_vis
+        self.extra_vis = extra_vis
+        self.WinList = WinList
     def go(self):
         # first create list of relevant buttons for quick reference: list of lists; outer list corresponds to
-        # Rating Bars in order, and inner lists are 0 for decrease buttons, 1 for increase, and 2 for confirm
-        butt_lists = [[rb.decr_butts,rb.incr_butts,rb_conf_butts] for rb in self.RBarList]
-        
+        # Rating Bars in order, and inner lists are 0 for decrease buttons, 1 for increase, and 2 for confirm for that bar
+        butt_lists = [[rb.decr_butts,rb.incr_butts,rb.conf_butts] for rb in self.RBarList]
+        rates = np.zeros(len(self.RBarList)) # ratings stored here
         # check for all possible button presses and react accordingly
-        for rb_idx,bl in enumerate(butt_lists):
-            if event.getKeys(bl[0]): # decrease
-                self.RBarList[rb_idx].set_val("decr")
-            if event.getKeys(bl[1]): # increase
-                self.RBarList[rb_idx].set_val("incr")
-            if event.getKeys(bl[2]): # confirm
-                self.RBarList[rb_idx].confirm()
+        while not np.all(rates):
+            for rb_idx,bl in enumerate(butt_lists):
+                if event.getKeys(bl[0]): # decrease
+                    self.RBarList[rb_idx].set_val("decr")
+                if event.getKeys(bl[1]): # increase
+                    self.RBarList[rb_idx].set_val("incr")
+                if event.getKeys(bl[2]): # confirm
+                    rates[rb_idx] = self.RBarList[rb_idx].confirm()
+                    print(rates)
+            event.clearEvents()
+            for rb in self.RBarList:
+                rb.draw()
+            for ev in self.extra_vis:
+                ev.draw()
+            for wl in self.WinList:
+                wl.flip()           
+        return rates
