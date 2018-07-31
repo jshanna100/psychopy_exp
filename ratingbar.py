@@ -1,38 +1,41 @@
 from psychopy import visual, event
 import numpy as np
 import pyglet
-
-''' TODO TODO TODO coordinate translation system is completely screwed up '''
-
-class CoordFlipper():
-    def __init__(self,richtung=0):
-        self.richtung = richtung
-    def __call__(self,coord):
-        if len(coord) is not 2:
-            raise ValueError("Coord flipping: only length of 2 accepted.")
-        if self.richtung:
-            coord=coord[::-1]
-        return coord
         
+def col_anim(beg,end,steps):
+    # make color animations, put in start and finish RGB values and how many frames
+    col_list = []
+    for col_idx in range(3):
+        col_list.append(list(np.linspace(beg[col_idx],end[col_idx],steps)))
+    return list(zip(*col_list))
+
 class Rel2Abs():
-    def __init__(self,abpos,lng_sht):
+    def __init__(self,abpos,width,height,midline_pos,richtung):
         # when given coords in relation to the bar, output absolute coordinates
         # abpos: tuple with xy coords of frame centre
-        # lng_sht: tuple with length and width of frame
-        if len(abpos) is not 2 or len(lng_sht) is not 2:
+        # width: absolute width
+        # height: absolute height
+        # richtung: orientation of bar, 0 is horizontal, 1 is vertical
+        if len(abpos) is not 2:
             raise ValueError("Coord transposition: only length of 2 accepted.")
         self.abpos = abpos
-        self.lng_sht = lng_sht
+        self.width = width
+        self.height = height
+        self.richtung = richtung
     def __call__(self,rel_xy):
         abpos = self.abpos
-        lng_sht = self.lng_sht
-        output = (abpos[0]+rel_xy[0]*lng_sht[0]/4,abpos[1]+rel_xy[1]*lng_sht[1]/4)
+        width,height = self.width,self.height
+        if self.richtung:
+            rel_xy = rel_xy[::-1]
+        output = (abpos[0]+rel_xy[0]*width/2,
+                  abpos[1]+rel_xy[1]*height/2)
         return output
     def resize(self,rel_size):
-        lng_sht = self.lng_sht
-        output = (rel_size[0]*lng_sht[0]/2,rel_size[1]*lng_sht[1]/2)
+        width,height = self.width,self.height
+        if self.richtung:
+            rel_size = rel_size[::-1]
+        output = (rel_size[0]*width,rel_size[1]*height)
         return output
-
 
 class VisObj():
     # class contains a visual object and queues of operations to apply to it
@@ -55,22 +58,20 @@ class VisObj():
             self.visobj.pos = self.pos.pop(0)
         self.visobj.draw()
         
-
-
 class RatingBar():
-    def __init__(self,win,pos,lng_sht,incr,decr_butts,incr_butts,conf_butts,orient="horizontal",midline_length=1,midline_pos=0,rval=0):
-        richtung = 1 if orient=="vertical" else 0
-        xyf = CoordFlipper(richtung=richtung)
-        r2a = Rel2Abs(pos,xyf(lng_sht))
+    def __init__(self,win,pos,width,height,incr,decr_butts,incr_butts,
+                 conf_butts,richtung=0,midline_length=1,midline_pos=0,
+                 overcolor=(0,0,1),undercolor=(1,0,0),visobjs_extras={}):
+        rval = midline_pos
+        r2a = Rel2Abs(pos,width,height,midline_pos,richtung)
         visobjs={}
-        visobjs["frame"]=VisObj(visual.Rect(win,units="norm",pos=pos,width=xyf(lng_sht)[0],height=xyf(lng_sht)[1],
-          lineColor=(0,0,0)))
+        visobjs["frame"]=VisObj(visual.Rect(win,units="norm",pos=pos,
+               width=width,height=height,lineColor=(0,0,0)))
         visobjs["valrect"]=VisObj(visual.Rect(win,units="norm",pos=(0,0),width=0,height=0,lineColor=(0,0,0)))
         visobjs["midline"]=VisObj(visual.Line(win,r2a((midline_pos,midline_length)),
           r2a((midline_pos,-midline_length)),lineColor=(0,0,0)))
-      
-        self.visobjs = visobjs
-        self.xyf = xyf
+        
+        self.visobjs = {**visobjs, **visobjs_extras}
         self.r2a = r2a
         self.rval = rval
         self.midline_pos = midline_pos
@@ -78,31 +79,41 @@ class RatingBar():
         self.incr_butts = incr_butts
         self.decr_butts = decr_butts
         self.conf_butts = conf_butts
-      
+        self.overcolor = overcolor
+        self.undercolor = undercolor
+        
     def draw(self):
         vis_list = list(self.visobjs.values())
         for vis in vis_list:
             vis.draw()
           
     def set_val(self,new_val):
-        xyf = self.xyf
         r2a = self.r2a
+        midline_pos = self.midline_pos
         if new_val=="incr":
             new_val = self.rval + self.incr
         elif new_val=="decr":
             new_val = self.rval - self.incr
+        if new_val > 1 or new_val < -1:
+            new_val = np.round(new_val)
         self.rval = new_val
-        new_dim = xyf(r2a.resize((abs(new_val),2)))
+        
+        
+        new_dim = r2a.resize((abs(new_val-midline_pos)/2,1))
         self.visobjs["valrect"].visobj.width = new_dim[0]
         self.visobjs["valrect"].visobj.height = new_dim[1]
-        self.visobjs["valrect"].visobj.pos = xyf(r2a((new_val,0)))
-        if new_val < self.midline_pos:
-            self.visobjs["valrect"].visobj.fillColor = (1,0,0)
+        self.visobjs["valrect"].visobj.pos = r2a(((midline_pos+new_val)/2,0))
+        if new_val < self.midline_pos:           
+            self.visobjs["valrect"].visobj.fillColor = self.undercolor
         if new_val > self.midline_pos:
-            self.visobjs["valrect"].visobj.fillColor = (0,0,1)
+            self.visobjs["valrect"].visobj.fillColor = self.overcolor
         self.draw()
         
     def confirm(self):
+        vo = self.visobjs["valrect"]
+        flash = col_anim(vo.visobj.fillColor,(0.9,0.9,0.9),10)
+        fossil = col_anim((0.9,0.9,0.9),(0.3,0.3,0.3),10)
+        vo.fillColor = flash + fossil
         return self.rval
             
         
@@ -123,12 +134,18 @@ class RBarVerkehr():
         # check for all possible button presses and react accordingly
         while np.any(np.isnan(rates)):
             for rb_idx,bl in enumerate(butt_lists):
-                if any([keyboard[x] for x in bl[0]]) and self.RBarList[rb_idx].rval>-1: # decrease
+                if any([keyboard[x] for x in bl[0]]) and self.RBarList[rb_idx].rval>-1 and np.isnan(rates[rb_idx]): # decrease
                     self.RBarList[rb_idx].set_val("decr")
-                if any([keyboard[x] for x in bl[1]]) and self.RBarList[rb_idx].rval<1: # increase
+                if any([keyboard[x] for x in bl[1]]) and self.RBarList[rb_idx].rval<1 and np.isnan(rates[rb_idx]): # increase
                     self.RBarList[rb_idx].set_val("incr")
                 if any([keyboard[x] for x in bl[2]]): # confirm
                     rates[rb_idx] = self.RBarList[rb_idx].confirm()
+            for rb in self.RBarList:
+                rb.draw()
+            for ev in self.extra_vis:
+                ev.draw()
+            self.win.flip()
+        for f in range(30):
             for rb in self.RBarList:
                 rb.draw()
             for ev in self.extra_vis:
