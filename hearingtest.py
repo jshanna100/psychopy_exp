@@ -46,6 +46,7 @@ def draw_visobjs(visobjs):
     vis_list = list(visobjs.values())
     for vis in vis_list:
         vis.draw()
+    
 
 def dec2dcb(dec):
     return 20*np.log10(np.abs(dec))
@@ -80,7 +81,7 @@ def pos_anim(beg,end,steps):
             
 def heartest(sound_name_list,key_presses,ops,quorum,
   play_duration=2, jitter_range=(0.5,2), practice=0,
-  monitor_idx=0,beamer_idx=np.nan,monitor_fps=60,beamer_fps=60,
+  monitor_idx=0,beamer_idx=np.nan,monitor_fps=None,beamer_fps=None,
   back_color=(0.5,0.5,0.5)):
 
     runde = np.concatenate((np.zeros(quorum),np.ones(quorum))).astype(np.int)
@@ -91,11 +92,12 @@ def heartest(sound_name_list,key_presses,ops,quorum,
     # set up the monitors
     beamer = None
     monitor = visual.Window(size=monsize,color=back_color,screen=monitor_idx)
+    if not monitor_fps:
+        monitor_fps = 1/monitor.monitorFramePeriod
     if not np.isnan(beamer_idx):    
         beamer = visual.Window(color=back_color,screen=beamer_idx,fullscr=True)
-        
-    print(monitor.monitorFramePeriod)
-    print(beamer.monitorFramePeriod)
+        if not beamer_fps:
+            beamer_fps = 1/beamer.monitorFramePeriod
     
     visobjs = {}
     beamobjs = {}
@@ -116,12 +118,16 @@ def heartest(sound_name_list,key_presses,ops,quorum,
     visobjs["status"] = visual.TextStim(win=monitor,text="Running",pos=(0.05,-0.5),height=0.08,color=(0,0,0),alignHoriz="left")
     visobjs["message"] = visual.TextStim(win=monitor,text="press p to pause, a to abort",pos=(-0.95,-0.8),height=0.06,color=(0,0,0),alignHoriz="left")
 
+    if practice:
+        visobjs["mode"].text = "Practice"
+        visobjs["mode"].color = (1,0,0)
+    
     if beamer is not None:
         beamobjs["befehl"] = visual.TextStim(win=beamer,
-               text="Drücke sofort RECHTS nach einem Ton in rechtem Ohr\n\nDrücke sofort LINKS nach einem Ton in linkem Ohr.",
+               text="Drücke sofort RECHTS nach einem Ton im rechten Ohr\n\n\nDrücke sofort LINKS nach einem Ton im linken Ohr.",
                pos=(0,0),height=0.07,color=(0,0,0))
         beamobjs["bericht"] = VisObj(visual.TextStim(win=beamer,text="",pos=(0,0),
-                height=0.07,color=back_color))
+                height=0.1,color=back_color))
         draw_visobjs(beamobjs)
         beamer.flip()
     
@@ -188,8 +194,8 @@ def heartest(sound_name_list,key_presses,ops,quorum,
         visobjs["filename"].text=sound_name_list[sound_idx]
         visobjs["progress"].text = "File: "+str(abs_idx+1)+" of "+str(len(sound_name_list))
         # already do a reduction before we begin
-        swr.operate(0,dcb_delta=swr.ops[0].pop(),direction=-1)
-        swr.operate(1,dcb_delta=swr.ops[1].pop(),direction=-1)
+        swr.operate(0,dcb_delta=swr.ops[0].pop(0),direction=-1)
+        swr.operate(1,dcb_delta=swr.ops[1].pop(0),direction=-1)
         ear_thresh = dec2dcb((np.max(swr.data[:,0]),np.max(swr.data[:,1])))
         visobjs["thresh_left"].pos = pos_anim(visobjs["thresh_left"].visobj.pos,(visobjs["thresh_left"].visobj.pos[0],
           thresh_height_min+thresh_height*(-160-ear_thresh[0])/-160),int(monitor_fps*0.5))
@@ -253,8 +259,16 @@ def heartest(sound_name_list,key_presses,ops,quorum,
                         visobjs["leftpress"].fillColor=anim_pattern.copy()
                     else:
                         visobjs["rightpress"].fillColor=anim_pattern.copy()
+                    if practice and not np.isnan(beamer_idx):
+                        beamobjs["bericht"].visobj.text="Falsch!"
+                        beamobjs["bericht"].color = col_anim(back_color,(1,0,0),beamer_fps*0.35) + \
+                          col_anim((1,0,0),back_color,beamer_fps*0.35)
                 else:
                     accs[r].append(0)
+                    if practice and not np.isnan(beamer_idx):
+                        beamobjs["bericht"].visobj.text="Verpassen!"
+                        beamobjs["bericht"].color = col_anim(back_color,(1,0,0),beamer_fps*0.35) + \
+                          col_anim((1,0,0),back_color,beamer_fps*0.35)
                 
                 # update acc squares
                 if accs[r][-1]:
@@ -304,12 +318,12 @@ def heartest(sound_name_list,key_presses,ops,quorum,
                 green_flash = col_anim((0,1,0),(1,1,1),monitor_fps*0.2) + col_anim((1,1,1),back_color,monitor_fps*0.4)
                 red_flash = col_anim((1,0,0),(1,1,1),monitor_fps*0.2) + col_anim((1,1,1),back_color,monitor_fps*0.4)
                 if accs[r_idx,].all() and swr.ops[r_idx]: # all correct, decrease volume, flash squares
-                    swr.operate(r_idx,dcb_delta=swr.ops[r_idx].pop(),direction=-1)
+                    swr.operate(r_idx,dcb_delta=swr.ops[r_idx].pop(0),direction=-1)
                     for accp in acc_pane_names[r_idx]:
                         visobjs[accp].fillColor = green_flash
                         visobjs[accp].lineColor = line_flash
                 elif not accs[r_idx,].any() and swr.ops[r_idx]: # all false, increase
-                    swr.operate(r_idx,dcb_delta=swr.ops[r_idx].pop(),direction=1)
+                    swr.operate(r_idx,dcb_delta=swr.ops[r_idx].pop(0),direction=1)
                     for accp in acc_pane_names[r_idx]:
                         visobjs[accp].fillColor = red_flash
                         visobjs[accp].lineColor = line_flash
@@ -325,7 +339,7 @@ def heartest(sound_name_list,key_presses,ops,quorum,
                   thresh_height_min+thresh_height*(-160-ear_thresh[1])/-160),int(monitor_fps*0.5))
         # store threshold for item
         thresh_results.append([sound_idx,swr.name,ear_thresh])
-        for f_idx in range(int(monitor_fps*0.5)):
+        for f_idx in range(int(monitor_fps*0.35)):
             draw_visobjs(visobjs)
             monitor.flip()
         

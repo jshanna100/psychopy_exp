@@ -145,7 +145,7 @@ class RBarVerkehr():
             for ev in self.extra_vis:
                 ev.draw()
             self.win.flip()
-        for f in range(30):
+        for f in range(30):  #TODO: make this adapt to refresh rate
             for rb in self.RBarList:
                 rb.draw()
             for ev in self.extra_vis:
