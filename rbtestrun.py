@@ -1,4 +1,4 @@
-from ratingbar import *
+from ratingbar import RatingBar,RBarVerkehr
 from psychopy import visual
 import numpy as np
 from pyglet.window import key

@@ -138,7 +138,7 @@ class RBarVerkehr():
                     self.RBarList[rb_idx].set_val("decr")
                 if any([keyboard[x] for x in bl[1]]) and self.RBarList[rb_idx].rval<1 and np.isnan(rates[rb_idx]): # increase
                     self.RBarList[rb_idx].set_val("incr")
-                if any([keyboard[x] for x in bl[2]]): # confirm
+                if any([keyboard[x] for x in bl[2]]) and np.isnan(rates[rb_idx]): # confirm
                     rates[rb_idx] = self.RBarList[rb_idx].confirm()
             for rb in self.RBarList:
                 rb.draw()

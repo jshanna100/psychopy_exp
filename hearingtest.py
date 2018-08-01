@@ -26,6 +26,8 @@ class VisObj():
             self.visobj.lineColor = self.lineColor.pop(0)
         if self.pos:
             self.visobj.pos = self.pos.pop(0)
+        if self.color:
+            self.visobj.color = self.color.pop(0)
         self.visobj.draw()
         
 
@@ -76,19 +78,27 @@ def pos_anim(beg,end,steps):
         pos_list.append(list(np.linspace(beg[pos_idx],end[pos_idx],steps)))
     return list(zip(*pos_list))
             
-def heartest(sound_name_list,key_presses,ops,quorum,play_duration,jitter_range):
+def heartest(sound_name_list,key_presses,ops,quorum,
+  play_duration=2, jitter_range=(0.5,2), practice=0,
+  monitor_idx=0,beamer_idx=np.nan,monitor_fps=60,beamer_fps=60,
+  back_color=(0.5,0.5,0.5)):
 
-    back_color = (0.5,0.5,0.5)
     runde = np.concatenate((np.zeros(quorum),np.ones(quorum))).astype(np.int)
     monsize = (700,700)
     thresh_results = []
     abort = 0
 
     # set up the monitors
-    monitor = visual.Window(size=monsize,color=back_color)
-    monitor_fps = monitor.getActualFrameRate()
-
+    beamer = None
+    monitor = visual.Window(size=monsize,color=back_color,screen=monitor_idx)
+    if not np.isnan(beamer_idx):    
+        beamer = visual.Window(color=back_color,screen=beamer_idx,fullscr=True)
+        
+    print(monitor.monitorFramePeriod)
+    print(beamer.monitorFramePeriod)
+    
     visobjs = {}
+    beamobjs = {}
     # set up the complex of visual objects
 
     # text
@@ -106,6 +116,15 @@ def heartest(sound_name_list,key_presses,ops,quorum,play_duration,jitter_range):
     visobjs["status"] = visual.TextStim(win=monitor,text="Running",pos=(0.05,-0.5),height=0.08,color=(0,0,0),alignHoriz="left")
     visobjs["message"] = visual.TextStim(win=monitor,text="press p to pause, a to abort",pos=(-0.95,-0.8),height=0.06,color=(0,0,0),alignHoriz="left")
 
+    if beamer is not None:
+        beamobjs["befehl"] = visual.TextStim(win=beamer,
+               text="Drücke sofort RECHTS nach einem Ton in rechtem Ohr\n\nDrücke sofort LINKS nach einem Ton in linkem Ohr.",
+               pos=(0,0),height=0.07,color=(0,0,0))
+        beamobjs["bericht"] = VisObj(visual.TextStim(win=beamer,text="",pos=(0,0),
+                height=0.07,color=back_color))
+        draw_visobjs(beamobjs)
+        beamer.flip()
+    
     # tone/press squares
     visobjs["lefttone"] = VisObj(visual.Rect(
       win=monitor,units="norm",width=0.1,height=0.1,pos=(-0.8,0.7),lineColor=[0,0,0]))
@@ -159,7 +178,6 @@ def heartest(sound_name_list,key_presses,ops,quorum,play_duration,jitter_range):
         # 0 values to infinitesimal values for dB log calculations
         data[data==0]=0.00000001
         sound_list.append(SoundWrap(sound_name,data,incr_dcb,[ops.copy(),ops.copy()],aud_res))
-
 
     # randomise order of sounds
     reihenfolge = np.array(range(len(sound_name_list)))
@@ -221,7 +239,12 @@ def heartest(sound_name_list,key_presses,ops,quorum,play_duration,jitter_range):
                     if r:
                         visobjs["rightpress"].fillColor=anim_pattern.copy()
                     else:
-                        visobjs["leftpress"].fillColor=anim_pattern.copy()               
+                        visobjs["leftpress"].fillColor=anim_pattern.copy()
+                    if practice and not np.isnan(beamer_idx):
+                        beamobjs["bericht"].visobj.text="Richtig!"
+                        beamobjs["bericht"].color = col_anim(back_color,(0,1,0),beamer_fps*0.35) + \
+                          col_anim((0,1,0),back_color,beamer_fps*0.35)
+                        
                 elif key_presses[1-r] in response:
                     accs[r].append(0)
                     anim_pattern = col_anim(back_color,(1,0,0),int(monitor_fps*0.15)) + \
@@ -244,8 +267,11 @@ def heartest(sound_name_list,key_presses,ops,quorum,play_duration,jitter_range):
                 jitter = jitter_range[0]+np.random.rand()*(jitter_range[1]-jitter_range[0])
                 for f_idx in range(int(monitor_fps*jitter)):
                     draw_visobjs(visobjs)
+                    if not np.isnan(beamer_idx):
+                        draw_visobjs(beamobjs)
+                        beamer.flip()
                     monitor.flip()
-                if event.getKeys(["p"]):
+                if "p" in event.getKeys(["p"]):
                     visobjs["status"].text = "Paused"
                     visobjs["status"].color = (1,0,0)
                     visobjs["message"].text = "press p again to resume"
@@ -257,7 +283,7 @@ def heartest(sound_name_list,key_presses,ops,quorum,play_duration,jitter_range):
                     visobjs["message"].text = "press p to pause, a to abort"
                     draw_visobjs(visobjs)
                     monitor.flip
-                if event.getKeys(["a"]):
+                if "a" in event.getKeys(["a"]):
                     abort += 1
                     if abort == 1:
                         visobjs["message"].text = "press a again to abort, n to cancel"
@@ -265,7 +291,7 @@ def heartest(sound_name_list,key_presses,ops,quorum,play_duration,jitter_range):
                     if abort == 2:
                         monitor.close()
                         return ([],0)
-                if abort == 1 and event.getKeys(["n"]):
+                if abort == 1 and "n" in event.getKeys(["n"]):
                     abort = 0
                     visobjs["message"].text = "press p to pause, a to abort"
                     visobjs["message"].color = (0,0,0)
@@ -285,7 +311,7 @@ def heartest(sound_name_list,key_presses,ops,quorum,play_duration,jitter_range):
                 elif not accs[r_idx,].any() and swr.ops[r_idx]: # all false, increase
                     swr.operate(r_idx,dcb_delta=swr.ops[r_idx].pop(),direction=1)
                     for accp in acc_pane_names[r_idx]:
-                        visobjs[accp].fillColor = green_flash
+                        visobjs[accp].fillColor = red_flash
                         visobjs[accp].lineColor = line_flash
                 else: # ambiguous result, just clear acc squares
                     for accp in acc_pane_names[r_idx]:
@@ -317,4 +343,6 @@ def heartest(sound_name_list,key_presses,ops,quorum,play_duration,jitter_range):
                 file.write("{idx}\t{name}\t{right}\t{left}\n".format(
                   idx=thrsh[0],name=thrsh[1],right=thrsh[2][0],left=thrsh[2][1]))       
     monitor.close()
+    if not np.isnan(beamer_idx):
+        beamer.close()
     return (thresh_results,1)
