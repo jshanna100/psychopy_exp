@@ -92,7 +92,7 @@ class HearTest():
         self.beamer_fps = beamer_fps
         self.back_color = back_color
     
-    def draw_visobjs(visobjs):
+    def draw_visobjs(self,visobjs):
         vis_list = list(visobjs.values())
         for vis in vis_list:
             vis.draw()
