@@ -153,6 +153,6 @@ class RBarVerkehr():
                 ev.draw()
             self.win.flip()
         for rb in self.RBarList:
-            rb.visobjs["valrect"].width=0
-            rb.visobjs["valrect"].height=0
+            rb.visobjs["valrect"].visobj.width=0
+            rb.visobjs["valrect"].visobj.height=0
         return rates
