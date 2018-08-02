@@ -67,7 +67,8 @@ class RatingBar():
         visobjs={}
         visobjs["frame"]=VisObj(visual.Rect(win,units="norm",pos=pos,
                width=width,height=height,lineColor=(0,0,0)))
-        visobjs["valrect"]=VisObj(visual.Rect(win,units="norm",pos=(0,0),width=0,height=0,lineColor=(0,0,0)))
+        visobjs["valrect"]=VisObj(visual.Rect(win,units="norm",pos=(0,0),
+               width=0,height=0,lineColor=(0,0,0),fillColor=(0.5,0.5,0.5)))
         visobjs["midline"]=VisObj(visual.Line(win,r2a((midline_pos,midline_length)),
           r2a((midline_pos,-midline_length)),lineColor=(0,0,0)))
         
@@ -151,4 +152,7 @@ class RBarVerkehr():
             for ev in self.extra_vis:
                 ev.draw()
             self.win.flip()
+        for rb in self.RBarList:
+            rb.visobjs["valrect"].width=0
+            rb.visobjs["valrect"].height=0
         return rates
