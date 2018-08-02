@@ -1,3 +1,4 @@
-Subject test, recorded on 17.7.2018, 19:54
-Index	Wavfile	RightEar	LeftEar
-0	4000Hz.wav	-65.2498544876801	-116.7498544876801
+Subject test, recorded on 2.8.2018, 15:10
+Index	Wavfile	LeftEar	RightEar
+0	4000Hz.wav	-116.7498544876801	-56.74985448768011
+1	4000_cheby.wav	-65.35036388891879	-11.850363888918793

@@ -155,4 +155,5 @@ class RBarVerkehr():
         for rb in self.RBarList:
             rb.visobjs["valrect"].visobj.width=0
             rb.visobjs["valrect"].visobj.height=0
+            rb.rval = self.midline_pos
         return rates

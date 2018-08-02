@@ -1,4 +1,4 @@
-from hearingtest import heartest
+from hearingtest import HearTest
 
 sound_name_list = ["4000Hz.wav","4000_cheby.wav"]
 key_presses = ["3","4"] # these correspond to hitting "left" and "right"
@@ -8,7 +8,7 @@ quorum = 2 # must have this many correct/incorrect to reduce/increase volume
 play_duration = 2
 jitter_range = (0.8,2)
 
-a = heartest(sound_name_list,key_presses,practice_ops,quorum,
+ht = HearTest(sound_name_list,key_presses,ops,quorum,
              monitor_idx=0,beamer_idx=2,
-             practice=1)
-print(a)
+             practice=0)
+a = ht.go()
