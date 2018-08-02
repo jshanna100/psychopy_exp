@@ -391,3 +391,6 @@ class HearTest():
         if not np.isnan(beamer_idx):
             beamer.close()
 
+class HTestVerkehr():    
+    def __init__(HTest,PracTest):
+        pass
