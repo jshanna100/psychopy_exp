@@ -4,8 +4,8 @@ from psychopy import visual, prefs, event
 prefs.general["audioLib"] = ["pyo"]
 from psychopy import sound
 import datetime
-from tkinter import filedialog
-from tkinter import Tk
+from tkinter import filedialog,Tk,Button,mainloop
+import csv
 
 class VisObj():
     # class contains a visual object and queues of operations to apply to it
@@ -117,11 +117,13 @@ class HearTest():
         
         # set up the monitors
         beamer = None
-        monitor = visual.Window(size=(700,700),color=back_color,screen=monitor_idx)
+        monitor = visual.Window(size=(700,700),color=back_color,
+                                screen=monitor_idx,winType="pygame")
         if not monitor_fps:
             monitor_fps = 1/monitor.monitorFramePeriod
         if not np.isnan(beamer_idx):    
-            beamer = visual.Window(color=back_color,screen=beamer_idx,fullscr=True)
+            beamer = visual.Window(color=back_color,screen=beamer_idx,
+                                   fullscr=True,winType="pygame")
             if not beamer_fps:
                 beamer_fps = 1/beamer.monitorFramePeriod
         
@@ -365,7 +367,7 @@ class HearTest():
                     visobjs["thresh_right"].pos = pos_anim(visobjs["thresh_right"].visobj.pos,(visobjs["thresh_right"].visobj.pos[0],
                       thresh_height_min+thresh_height*(-160-ear_thresh[1])/-160),int(monitor_fps*0.5))
             # store threshold for item
-            thresh_results.append([sound_idx,swr.name,ear_thresh])
+            thresh_results.append([sound_idx,swr.name,ear_thresh[0],ear_thresh[1]])
             for f_idx in range(int(monitor_fps*0.35)):
                 self.draw_visobjs(visobjs)
                 monitor.flip()
@@ -383,7 +385,7 @@ class HearTest():
                     file.write("Index\tWavfile\tLeftEar\tRightEar\n")
                     for thrsh in thresh_results:
                         file.write("{idx}\t{name}\t{right}\t{left}\n".format(
-                          idx=thrsh[0],name=thrsh[1],right=thrsh[2][0],left=thrsh[2][1]))       
+                          idx=thrsh[0],name=thrsh[1],right=thrsh[2],left=thrsh[3]))       
 
             return thresh_results
         
@@ -392,5 +394,41 @@ class HearTest():
             beamer.close()
 
 class HTestVerkehr():    
-    def __init__(HTest,PracTest):
+    def __init__(self,HTest,PracTest):
+        self.HTest = HTest
+        self.PracTest = PracTest
+        self.Threshs = []
+        
+    def HTest_callback(self):
+        #self.HTest.go()
         pass
+    def PTest_callback(self):
+        #self.PracTest.go()
+        pass
+    def LoadThresh_callback(self):
+        filename = filedialog.askopenfilename(filetypes=(("Hearing test files","*.hrt"),("All files","*.*")))
+        with open(filename,"r") as tsv:
+            reader = csv.reader(tsv,delimiter="\t")
+            thresh_results = [x for x in reader][2:]
+        self.Threshs = thresh_results
+    def Proceed_callback(self):
+        pass
+    
+    def go(self):
+        master = Tk()
+        ht_butt = Button(master,text="Hearing Test",command=self.HTest_callback,height=12, width=12)
+        pt_butt = Button(master,text="Practice",command=self.PTest_callback,height=12, width=12)
+        lt_butt = Button(master,text="Load thresholds",command=self.LoadThresh_callback,height=12, width=12)
+        p_butt = Button(master,text="Proceed",command=self.Proceed_callback,height=12, width=12)
+        ht_butt.pack()
+        pt_butt.pack()
+        lt_butt.pack()
+        p_butt.pack()
+        
+        mainloop()
+        
+        
+        
+        
+       
+        

@@ -1,4 +1,4 @@
-from hearingtest import HearTest
+from hearingtest import HearTest, HTestVerkehr
 
 sound_name_list = ["4000Hz.wav","4000_cheby.wav"]
 key_presses = ["3","4"] # these correspond to hitting "left" and "right"
@@ -9,6 +9,12 @@ play_duration = 2
 jitter_range = (0.8,2)
 
 ht = HearTest(sound_name_list,key_presses,ops,quorum,
-             monitor_idx=0,beamer_idx=2,
+             monitor_idx=0,beamer_idx=1,
              practice=0)
-a = ht.go()
+pt = HearTest(sound_name_list,key_presses,practice_ops,quorum,
+             monitor_idx=0,beamer_idx=1,
+             practice=1)
+
+htv = HTestVerkehr(ht,pt)
+htv.go()
+
