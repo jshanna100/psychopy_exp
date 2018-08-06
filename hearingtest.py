@@ -4,7 +4,8 @@ from psychopy import visual, prefs, event
 prefs.general["audioLib"] = ["pyo"]
 from psychopy import sound
 import datetime
-from tkinter import filedialog,Tk,Button,mainloop
+from tkinter import filedialog
+from tkinter import Tk,Button,mainloop
 import csv
 
 class VisObj():
@@ -32,15 +33,24 @@ class VisObj():
         
 class SoundWrap():
     # class contains sound, sound info, and information required for performing iterative operations on them
-    def __init__(self,name,data,operation,ops,aud_res):
+    def __init__(self,name,data,operation,ops):
         self.name = name # file name of wav
         self.data = data # wav data in numpy format
         self.operation = operation # operation to perform on data
-        self.aud_res = aud_res # resolution of wav file
         self.ops = ops # which arguments to pass to the operation
     def operate(self,side_idx,**kwargs):
         self.data[:,side_idx] = self.operation(self.data[:,side_idx],**kwargs)
     
+def audio_load(sound_name):
+    nptypes = {np.dtype("int16"):32768,np.dtype("int32"):2147483648}
+    fs,data = wavfile.read(sound_name)
+    aud_res = nptypes[data.dtype]
+    if len(data.shape)==1:
+        data = (np.tile(data,(2,1))/aud_res).T
+    # 0 values to infinitesimal values for dB log calculations
+    data[data==0]=0.00000001
+    return data
+
 def dec2dcb(dec):
     return 20*np.log10(np.abs(dec))
 
@@ -50,13 +60,11 @@ def dcb2dec(dcb):
 def incr_dcb(data,dcb_delta=0,direction=-1):
     # if direction is 1, increase by requested decibels, if -1 decrease by same amount
     dcb = dec2dcb(np.abs(data))
-    #print("Before: max: {} min: {}".format(np.max(dcb),np.min(dcb)))
     if direction==1:
         newdcb = dcb + dcb_delta
     elif direction==-1:
         newdcb = dcb - dcb_delta
     newdcb[newdcb<-160]=-160
-    #print("After: max: {} min: {}".format(np.max(newdcb),np.min(newdcb)))
     return dcb2dec(newdcb)*np.sign(data)
     
 
@@ -118,12 +126,12 @@ class HearTest():
         # set up the monitors
         beamer = None
         monitor = visual.Window(size=(700,700),color=back_color,
-                                screen=monitor_idx,winType="pygame")
+                                screen=monitor_idx,winType="pyglet")
         if not monitor_fps:
             monitor_fps = 1/monitor.monitorFramePeriod
         if not np.isnan(beamer_idx):    
             beamer = visual.Window(color=back_color,screen=beamer_idx,
-                                   fullscr=True,winType="pygame")
+                                   fullscr=True,winType="pyglet")
             if not beamer_fps:
                 beamer_fps = 1/beamer.monitorFramePeriod
         
@@ -205,13 +213,8 @@ class HearTest():
         # and normalise to [-1,1] range, build the SoundWrap objects
         sound_list = []
         for sound_name in sound_name_list:
-            nptypes = {np.dtype("int16"):32768,np.dtype("int32"):2147483648}
-            fs,sig = wavfile.read(sound_name)
-            aud_res = nptypes[sig.dtype]
-            data = (np.tile(sig,(2,1))/aud_res).T
-            # 0 values to infinitesimal values for dB log calculations
-            data[data==0]=0.00000001
-            sound_list.append(SoundWrap(sound_name,data,incr_dcb,[ops.copy(),ops.copy()],aud_res))
+            snd = audio_load(sound_name)
+            sound_list.append(SoundWrap(sound_name,snd,incr_dcb,[ops.copy(),ops.copy()]))
     
         # randomise order of sounds
         reihenfolge = np.array(range(len(sound_name_list)))
@@ -387,24 +390,22 @@ class HearTest():
                         file.write("{idx}\t{name}\t{right}\t{left}\n".format(
                           idx=thrsh[0],name=thrsh[1],right=thrsh[2],left=thrsh[3]))       
 
-            return thresh_results
-        
         monitor.close()
         if not np.isnan(beamer_idx):
             beamer.close()
+        return thresh_results
 
 class HTestVerkehr():    
-    def __init__(self,HTest,PracTest):
+    def __init__(self,HTest,PracTest,over_thresh=55):
         self.HTest = HTest
         self.PracTest = PracTest
-        self.Threshs = []
+        self.Threshs = [[s_idx, s, "0", "0"] for s_idx,s in enumerate(HTest.sound_name_list)]        
+        self.over_thresh = over_thresh
         
     def HTest_callback(self):
-        #self.HTest.go()
-        pass
+        self.Threshs = self.HTest.go()
     def PTest_callback(self):
-        #self.PracTest.go()
-        pass
+        self.PracTest.go()
     def LoadThresh_callback(self):
         filename = filedialog.askopenfilename(filetypes=(("Hearing test files","*.hrt"),("All files","*.*")))
         with open(filename,"r") as tsv:
@@ -419,13 +420,22 @@ class HTestVerkehr():
         ht_butt = Button(master,text="Hearing Test",command=self.HTest_callback,height=12, width=12)
         pt_butt = Button(master,text="Practice",command=self.PTest_callback,height=12, width=12)
         lt_butt = Button(master,text="Load thresholds",command=self.LoadThresh_callback,height=12, width=12)
-        p_butt = Button(master,text="Proceed",command=self.Proceed_callback,height=12, width=12)
-        ht_butt.pack()
-        pt_butt.pack()
-        lt_butt.pack()
-        p_butt.pack()
-        
+        ht_butt.pack(side="left")
+        pt_butt.pack(side="left")
+        lt_butt.pack(side="left")
+        master.title("Hearing Test")
         mainloop()
+            
+        sounds = {}
+        for snd in self.Threshs:
+            data = audio_load(snd[1])
+            for i_idx in range(2):
+                incr = 0 if float(snd[2+i_idx])+self.over_thresh > 0 else float(snd[2+i_idx])+self.over_thresh
+                data[:,i_idx] = incr_dcb(data[:,i_idx],dcb_delta=incr,direction=1)
+            sounds[snd[1]] = sound.Sound(data)
+        return sounds
+        
+        
         
         
         

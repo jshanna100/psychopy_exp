@@ -9,12 +9,11 @@ play_duration = 2
 jitter_range = (0.8,2)
 
 ht = HearTest(sound_name_list,key_presses,ops,quorum,
-             monitor_idx=0,beamer_idx=1,
+             monitor_idx=0,beamer_idx=2,
              practice=0)
 pt = HearTest(sound_name_list,key_presses,practice_ops,quorum,
-             monitor_idx=0,beamer_idx=1,
+             monitor_idx=0,beamer_idx=2,
              practice=1)
 
-htv = HTestVerkehr(ht,pt)
-htv.go()
-
+htv = HTestVerkehr(ht,pt,over_thresh=55)
+sounds = htv.go()
