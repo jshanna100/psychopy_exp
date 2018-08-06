@@ -298,7 +298,7 @@ class HearTest():
                     else:
                         accs[r].append(0)
                         if practice and not np.isnan(beamer_idx):
-                            beamobjs["bericht"].visobj.text="Verpassen!"
+                            beamobjs["bericht"].visobj.text="Verpasst!"
                             beamobjs["bericht"].color = col_anim(back_color,(1,0,0),beamer_fps*0.35) + \
                               col_anim((1,0,0),back_color,beamer_fps*0.35)
                     

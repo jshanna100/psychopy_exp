@@ -3,7 +3,7 @@ from hearingtest import HearTest, HTestVerkehr
 sound_name_list = ["4000Hz.wav","4000_cheby.wav"]
 key_presses = ["3","4"] # these correspond to hitting "left" and "right"
 ops = [60,30,15,7.5,3.25]
-practice_ops = [0,0,0]
+practice_ops = [15,0,0]
 quorum = 2 # must have this many correct/incorrect to reduce/increase volume
 play_duration = 2
 jitter_range = (0.8,2)
