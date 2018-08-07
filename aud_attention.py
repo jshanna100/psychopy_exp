@@ -160,8 +160,10 @@ class Block():
 
 # define and run hearing test
 sound_name_list = ["4000Hz.wav","4000_cheby.wav","4000_fftf.wav","7500Hz.wav"]
+sound_name_list = ["4000Hz.wav"]
 key_presses = ["3","4"] # these correspond to hitting "left" and "right"
 ops = [60,30,15,7.5,3.25]
+ops = [30]
 practice_ops = [15,0,0]
 quorum = 2 # must have this many correct/incorrect to reduce/increase volume
 play_duration = 2

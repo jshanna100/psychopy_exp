@@ -1,6 +1,6 @@
 from scipy.io import wavfile
 import numpy as np
-from psychopy import visual, prefs, event
+from psychopy import visual, prefs, event, core
 prefs.general["audioLib"] = ["pyo"]
 from psychopy import sound
 import datetime
@@ -400,10 +400,12 @@ class HTestVerkehr():
         self.HTest = HTest
         self.PracTest = PracTest
         self.Threshs = [[s_idx, s, "0", "0"] for s_idx,s in enumerate(HTest.sound_name_list)]        
-        self.over_thresh = over_thresh
-        
+        self.over_thresh = over_thresh   
+        self.quit = 0
     def HTest_callback(self):
         self.Threshs = self.HTest.go()
+#        self.master.destroy()
+#        self.master_init()
     def PTest_callback(self):
         self.PracTest.go()
     def LoadThresh_callback(self):
@@ -413,18 +415,24 @@ class HTestVerkehr():
             thresh_results = [x for x in reader][2:]
         self.Threshs = thresh_results
     def Proceed_callback(self):
-        pass
-    
-    def go(self):
-        master = Tk()
-        ht_butt = Button(master,text="Hearing Test",command=self.HTest_callback,height=12, width=12)
-        pt_butt = Button(master,text="Practice",command=self.PTest_callback,height=12, width=12)
-        lt_butt = Button(master,text="Load thresholds",command=self.LoadThresh_callback,height=12, width=12)
+        self.quit = 1
+    def master_init(self):
+        self.master = Tk()
+        ht_butt = Button(self.master,text="Hearing Test",command=self.HTest_callback,height=12, width=12)
+        pt_butt = Button(self.master,text="Practice",command=self.PTest_callback,height=12, width=12)
+        lt_butt = Button(self.master,text="Load thresholds",command=self.LoadThresh_callback,height=12, width=12)
+        quit_butt = Button(self.master,text="Proceed",command=self.Proceed_callback,height=12, width=12)
         ht_butt.pack(side="left")
         pt_butt.pack(side="left")
         lt_butt.pack(side="left")
-        master.title("Hearing Test")
-        mainloop()
+        quit_butt.pack(side="left")
+        self.master.title("Hearing Test")
+    
+    def go(self):
+        self.master_init()
+        while not self.quit:
+            self.master.update()
+        self.master.destroy()
             
         sounds = {}
         for snd in self.Threshs:
