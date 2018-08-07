@@ -432,7 +432,7 @@ class HTestVerkehr():
             for i_idx in range(2):
                 incr = 0 if float(snd[2+i_idx])+self.over_thresh > 0 else float(snd[2+i_idx])+self.over_thresh
                 data[:,i_idx] = incr_dcb(data[:,i_idx],dcb_delta=incr,direction=1)
-            sounds[snd[1]] = sound.Sound(data)
+            sounds[snd[1]] = data
         return sounds
         
         
