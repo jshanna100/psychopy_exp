@@ -116,8 +116,7 @@ class RatingBar():
         fossil = col_anim((0.9,0.9,0.9),(0.3,0.3,0.3),10)
         vo.fillColor = flash + fossil
         return self.rval
-            
-        
+                    
 class RBarVerkehr():
     def __init__(self,RBarList,win,duration=-1,extra_vis=[]):
         self.RBarList = RBarList

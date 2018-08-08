@@ -85,7 +85,7 @@ class HearTest():
     def __init__(self,sound_name_list,key_presses,ops,quorum,
       play_duration=2, jitter_range=(0.5,2), practice=0,
       monitor_idx=0,beamer_idx=np.nan,monitor_fps=None,beamer_fps=None,
-      back_color=(0.5,0.5,0.5)):
+      back_color=(0.5,0.5,0.5),beamsize=(1280,1024),monsize=(700,700)):
         
         self.sound_name_list = sound_name_list
         self.key_presses = key_presses
@@ -99,6 +99,8 @@ class HearTest():
         self.monitor_fps = monitor_fps
         self.beamer_fps = beamer_fps
         self.back_color = back_color
+        self.monsize = monsize
+        self.beamsize = beamsize
     
     def draw_visobjs(self,visobjs):
         vis_list = list(visobjs.values())
@@ -125,13 +127,13 @@ class HearTest():
         
         # set up the monitors
         beamer = None
-        monitor = visual.Window(size=(700,700),color=back_color,
+        monitor = visual.Window(size=self.monsize,color=back_color,
                                 screen=monitor_idx,winType="pyglet")
         if not monitor_fps:
             monitor_fps = 1/monitor.monitorFramePeriod
         if not np.isnan(beamer_idx):    
-            beamer = visual.Window(color=back_color,screen=beamer_idx,
-                                   fullscr=True,winType="pyglet")
+            beamer = visual.Window(size=self.beamsize,color=back_color,screen=beamer_idx,
+                                   winType="pyglet")
             if not beamer_fps:
                 beamer_fps = 1/beamer.monitorFramePeriod
         
@@ -160,7 +162,7 @@ class HearTest():
         
         if beamer is not None:
             beamobjs["befehl"] = visual.TextStim(win=beamer,
-                   text="Drücke sofort RECHTS nach einem Ton im rechten Ohr\n\n\nDrücke sofort LINKS nach einem Ton im linken Ohr.",
+                   text="Drücke sofort RECHTS bei einem Ton im rechten Ohr.\n\n\nDrücke sofort LINKS bei einem Ton im linken Ohr.",
                    pos=(0,0),height=0.07,color=(0,0,0))
             beamobjs["bericht"] = VisObj(visual.TextStim(win=beamer,text="",pos=(0,0),
                     height=0.1,color=back_color))
