@@ -218,7 +218,7 @@ pt = HearTest(sound_name_list,key_presses,practice_ops,quorum,
 htv = HTestVerkehr(ht,pt,over_thresh=55)
 sounddata = htv.go()
 
-a = Block(sounddata,"audschwank","empty",["3","4"],0,5,0,2)
+a = Block(sounddata,"audschwank","empty",["3","4"],0,5,0,1)
 b = Block(sounddata,"audschwank","visschwank_selten",["3","4"],1,50,0,2,direction=1)
 c = Block(sounddata,"empty","visschwank",["3","4"],1,5,0,2)
 d = Block(sounddata,"empty","empty",["3","4"],1,5,0,2)
