@@ -1,11 +1,23 @@
 import numpy as np
 from psychopy import visual, prefs, event, core
-prefs.general["audioLib"] = ["pyo"]
+prefs.general["audioLib"] = ["pygame"]
 from psychopy import sound
 from ratingbar import RatingBar,RBarVerkehr
 from hearingtest import HearTest,HTestVerkehr
 import pickle
 from pyglet.window import key
+import _thread
+import time
+
+def aud_schwank(snd,schw_length,schw_step):
+    t = time.clock()
+    t_end = t + schw_length
+    t_next = t + schw_step
+    while t<t_end:
+        t = time.clock()
+        if t > t_next:
+            snd.setVolume((1-np.sin(np.pi*((t_end-t)/schw_length)))*0.5+0.5)
+            t_next = t + schw_step
 
 def col_anim(beg,end,steps):
     # make color animations, put in start and finish RGB values and how many frames
@@ -96,6 +108,9 @@ class Block():
         beamer.waitBlanking = False
         monitor_fps = np.round(1/monitor.monitorFramePeriod).astype(int)
         beamer_fps = np.round(1/beamer.monitorFramePeriod).astype(int)
+        
+        print("Monitor fps: " + str(monitor_fps))
+        print("Beamer fps: " + str(beamer_fps))
              
         panel_disp = {}
         panel_disp["title"] = visual.TextStim(win=monitor,text=self.name,
@@ -146,8 +161,6 @@ class Block():
                       len(reihenfolge))
             # load sound, create sound Schwankung
             snd = self.sounds[keys[sound_idx]]
-            schw_snd = sound.Sound(amp_adjust(self.sounddata[keys[sound_idx]][:44100,],
-                                   direction=self.direction))
             # load Schwankungen
             aschw = np.round(audschwank[keys[sound_idx]]*beamer_fps*1e-3).astype(int)
             vschw = np.round(visschwank[keys[sound_idx]]*beamer_fps*1e-3).astype(int)
@@ -156,12 +169,12 @@ class Block():
             aud_check_keys = 0
             vid_check_keys = 0
             snd.play(loops=10)
+            event.clearEvents()
             for f in range(self.play_len*beamer_fps):
                 trigger = 20 if self.beachten else 10
                 if f in aschw:
-                    snd.stop()
-                    schw_snd.play()
                     aud_check_keys = beamer_fps
+                    _thread.start_new_thread(aud_schwank,(snd,1.5,0.001))
                 if f in vschw:
                     fixation.color = col_anim((0,0,0),(0.25,0.25,0.25),beamer_fps//4) + \
                       col_anim((0.25,0.25,0.25),(0,0,0),beamer_fps//4)
@@ -171,14 +184,12 @@ class Block():
                         trigger += 1
                         print("audio hit")
                     aud_check_keys -= 1
-                    if not aud_check_keys:
-                        schw_snd.stop()
-                        snd.play()
                 if vid_check_keys > 0:
                     if event.getKeys(self.keys) and self.beachten:
                         trigger += 1
                         print("video hit")
                     vid_check_keys -= 1
+                event.clearEvents()
                 
                 fixation.draw()
                 self.beamer.flip()
@@ -201,6 +212,7 @@ class Block():
 
 # define and run hearing test
 sound_name_list = ["4000Hz.wav","4000_cheby.wav","4000_fftf.wav","7500Hz.wav"]
+#sound_name_list = ["7500Hz.wav"]
 key_presses = ["3","4"] # these correspond to hitting "left" and "right"
 ops = [60,30,15,7.5,3.25]
 practice_ops = [15,0,0]
@@ -218,15 +230,16 @@ pt = HearTest(sound_name_list,key_presses,practice_ops,quorum,
 htv = HTestVerkehr(ht,pt,over_thresh=55)
 sounddata = htv.go()
 
+
 a = Block(sounddata,"audschwank","empty",["3","4"],0,5,0,1)
 b = Block(sounddata,"audschwank","visschwank_selten",["3","4"],1,50,0,2,direction=1)
 c = Block(sounddata,"empty","visschwank",["3","4"],1,5,0,2)
 d = Block(sounddata,"empty","empty",["3","4"],1,5,0,2)
            
-#a.go()            
+a.go()            
 #b.go()
-c.go()
-d.go()
+#c.go()
+#d.go()
             
             
             
