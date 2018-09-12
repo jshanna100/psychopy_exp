@@ -130,12 +130,15 @@ class HearTest():
         monitor = visual.Window(size=self.monsize,color=back_color,
                                 screen=monitor_idx,winType="pyglet")
         if not monitor_fps:
-            monitor_fps = 1/monitor.monitorFramePeriod
+            monitor.waitBlanking = False
+            monitor_fps = np.round(1/monitor.monitorFramePeriod).astype(int)
+            print("Monitor fps: " + str(monitor_fps))
         if not np.isnan(beamer_idx):    
-            beamer = visual.Window(size=self.beamsize,color=back_color,screen=beamer_idx,
-                                   winType="pyglet")
+            beamer = visual.Window(size=self.beamsize,color=back_color,screen=beamer_idx, winType="pyglet")
             if not beamer_fps:
-                beamer_fps = 1/beamer.monitorFramePeriod
+                beamer.waitBlanking = False
+                beamer_fps = np.round(1/beamer.monitorFramePeriod).astype(int)
+                print("Beamer fps: "+ str(beamer_fps))
         
         visobjs = {}
         beamobjs = {}
@@ -261,25 +264,34 @@ class HearTest():
                         monitor.flip()
                         if response:
                             break
-                            
+
+                    sounds[r].stop()        
                     # turn off sound and update tone squares
-                    sounds[r].stop()
-                    anim_pattern = col_anim((0,1,0),(0,1,0),int(monitor_fps*0.15)) + \
-                      col_anim((0,1,0),back_color,int(monitor_fps*0.3))
+                    # allow a short grace period to respond
+                    if not response:
+                        for f_idx in range(int(monitor_fps*0.75)):
+                            grace_response = event.getKeys(key_presses)
+                            self.draw_visobjs(visobjs)
+                            monitor.flip()
+                            if grace_response:
+                                break
+                        response = response + grace_response            
+                    
+                    anim_pattern = col_anim((0,1,0),(0,1,0),int(monitor_fps*0.15)) + col_anim((0,1,0),back_color,int(monitor_fps*0.2))
                     if r:
-                        visobjs["righttone"].fillColor= anim_pattern.copy()
+                        visobjs["righttone"].fillColor= anim_pattern
                     else:
-                        visobjs["lefttone"].fillColor= anim_pattern.copy()
+                        visobjs["lefttone"].fillColor= anim_pattern
                     
                     # mark accuracy, update press squares
                     if key_presses[r] in response and key_presses[1-r] not in response:
                         accs[r].append(1)
                         anim_pattern = col_anim(back_color,(0,1,0),int(monitor_fps*0.15)) + \
-                          col_anim((0,1,0),back_color,int(monitor_fps*0.3))
+                          col_anim((0,1,0),back_color,int(monitor_fps*0.2))
                         if r:
-                            visobjs["rightpress"].fillColor=anim_pattern.copy()
+                            visobjs["rightpress"].fillColor=anim_pattern
                         else:
-                            visobjs["leftpress"].fillColor=anim_pattern.copy()
+                            visobjs["leftpress"].fillColor=anim_pattern
                         if practice and not np.isnan(beamer_idx):
                             beamobjs["bericht"].visobj.text="Richtig!"
                             beamobjs["bericht"].color = col_anim(back_color,(0,1,0),beamer_fps*0.35) + \

@@ -1,5 +1,5 @@
 import numpy as np
-from psychopy import visual, prefs, event, core
+from psychopy import visual, prefs, event, core, parallel
 prefs.general["audioLib"] = ["pygame"]
 from psychopy import sound
 from ratingbar import RatingBar,RBarVerkehr
@@ -103,7 +103,7 @@ class Block():
         self.monitor = monitor
         monitor.waitBlanking = False
         beamer = visual.Window(color=back_color,screen=self.beamer_idx,
-                                   fullscr=True,winType="pyglet")
+                                   fullscr=False,size=(1280,1024),winType="pyglet")
         self.beamer = beamer
         beamer.waitBlanking = False
         monitor_fps = np.round(1/monitor.monitorFramePeriod).astype(int)
@@ -124,14 +124,14 @@ class Block():
                   pos=(0,-0.5),height=0.1)
         pause_disp["beamer_smile"] = visual.ImageStim(win=beamer,image="ausruhen1.png")
         
-        fixation = VisObj(visual.TextStim(win=beamer,text="X",height=0.6,color=(0,0,0)))
+        fixation = VisObj(visual.TextStim(win=beamer,text="X",height=0.15,color=(0,0,0)))
         
         # set up rating bars
         down_butts = [key._3]
         up_butts = [key._4]
         conf_ud_butts = [key._1]
-        left_butts = [key._8]
-        right_butts = [key._7]
+        left_butts = [key._7]
+        right_butts = [key._8]
         conf_lr_butts = [key._0]
         
         extra_vis_vol = []
@@ -170,26 +170,32 @@ class Block():
             vid_check_keys = 0
             snd.play(loops=10)
             event.clearEvents()
+            port.setData(0)
             for f in range(self.play_len*beamer_fps):
-                trigger = 20 if self.beachten else 10
+                if self.beachten=="audio":
+                    trigger = 10
+                elif self.beachten=="video":
+                    trigger = 20
+                else:
+                    trigger = 30
+
                 if f in aschw:
                     aud_check_keys = beamer_fps
-                    _thread.start_new_thread(aud_schwank,(snd,1.5,0.001))
+                    _thread.start_new_thread(aud_schwank,(snd,1.5,0.005))
                 if f in vschw:
                     fixation.color = col_anim((0,0,0),(0.25,0.25,0.25),beamer_fps//4) + \
                       col_anim((0.25,0.25,0.25),(0,0,0),beamer_fps//4)
                     vid_check_keys = beamer_fps
                 if aud_check_keys > 0:
-                    if event.getKeys(self.keys) and not self.beachten:
+                    if event.getKeys(self.keys) and self.beachten == "audio":
                         trigger += 1
-                        print("audio hit")
                     aud_check_keys -= 1
                 if vid_check_keys > 0:
-                    if event.getKeys(self.keys) and self.beachten:
+                    if event.getKeys(self.keys) and self.beachten == "visual":
                         trigger += 1
-                        print("video hit")
                     vid_check_keys -= 1
                 event.clearEvents()
+                port.setData(trigger)
                 
                 fixation.draw()
                 self.beamer.flip()
@@ -220,24 +226,24 @@ quorum = 2 # must have this many correct/incorrect to reduce/increase volume
 play_duration = 2
 jitter_range = (0.8,2)
 
-ht = HearTest(sound_name_list,key_presses,ops,quorum,
-             monitor_idx=0,
-             practice=0)
-pt = HearTest(sound_name_list,key_presses,practice_ops,quorum,
-             monitor_idx=0,
-             practice=1)
+port = parallel.ParallelPort(address="/dev/parport0")
 
-htv = HTestVerkehr(ht,pt,over_thresh=55)
+ht = HearTest(sound_name_list,key_presses,ops,quorum,
+             monitor_idx=1, beamer_idx=0,practice=0)
+pt = HearTest(sound_name_list,key_presses,practice_ops,quorum,
+             monitor_idx=1, beamer_idx=1,practice=1)
+
+htv = HTestVerkehr(ht,pt,over_thresh=35)
 sounddata = htv.go()
 
 
-a = Block(sounddata,"audschwank","empty",["3","4"],0,5,0,1)
-b = Block(sounddata,"audschwank","visschwank_selten",["3","4"],1,50,0,2,direction=1)
-c = Block(sounddata,"empty","visschwank",["3","4"],1,5,0,2)
-d = Block(sounddata,"empty","empty",["3","4"],1,5,0,2)
+a = Block(sounddata,"audschwank","empty",["3","4","7","8"],"audio",25,1,0)
+b = Block(sounddata,"audschwank","visschwank_selten",["3","4","7","8"],"audio",25,1,0,direction=1)
+c = Block(sounddata,"empty","visschwank",["3","4","7","8"],"video",5,0,2)
+d = Block(sounddata,"empty","empty",["3","4","7","8"],"none",5,0,2)
            
-a.go()            
-#b.go()
+#a.go()            
+b.go()
 #c.go()
 #d.go()
             
