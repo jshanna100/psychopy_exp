@@ -8,6 +8,8 @@ import pickle
 from pyglet.window import key
 import _thread
 import time
+import datetime
+from tkinter import filedialog
 
 def aud_schwank(snd,schw_length,schw_step):
     t = time.clock()
@@ -73,7 +75,7 @@ class Block():
         core.quit()
     
     def __init__(self,sounddata,audschwank,visschwank,keys,beachten,play_len,
-                 monitor_idx,beamer_idx,direction=-1,name="Experiment"):
+                 monitor_idx,beamer_idx,name="Experiment"):
         self.sounddata = sounddata
         sounds = {}
         for s in list(sounddata.keys()):
@@ -86,10 +88,10 @@ class Block():
         self.monitor_idx = monitor_idx
         self.beamer_idx = beamer_idx
         self.beachten = beachten
-        self.direction = direction
         self.name = name
         
     def go(self):
+        ratings = []
         # get the schwank
         with open(self.audschwank,"rb") as f:
             audschwank = pickle.load(f)
@@ -114,7 +116,7 @@ class Block():
              
         panel_disp = {}
         panel_disp["title"] = visual.TextStim(win=monitor,text=self.name,
-                  pos=(-0.8,0.8),height=0.09,color=(0,0,0),alignHoriz="left")
+                  pos=(-0.8,0.8),height=0.07,color=(0,0,0),alignHoriz="left")
         panel_disp["progress"] = visual.TextStim(win=monitor,text="Trial: ",
           pos=(-0.8,0.65),height=0.09,color=(0,0,0),alignHoriz="left")
         
@@ -204,7 +206,7 @@ class Block():
             
             snd.stop()
             beamer.winHandle.activate()
-            rbv.go()
+            ratings.append([abs_idx,self.name,keys[sound_idx],rbv.go()])
             if "q" in event.getKeys(["q"]):
                 self.exp_quit()
         while "p" not in event.getKeys(["p"]):
@@ -213,14 +215,15 @@ class Block():
             beamer.flip()
         
         monitor.close()
-        beamer.close()                
+        beamer.close()
+        return ratings                
             
 
 # define and run hearing test
 sound_name_list = ["4000Hz.wav","4000_cheby.wav","4000_fftf.wav","7500Hz.wav"]
 #sound_name_list = ["7500Hz.wav"]
 key_presses = ["3","4"] # these correspond to hitting "left" and "right"
-ops = [60,30,15,7.5,3.25]
+ops = [40,20,10,5,2.5]
 practice_ops = [15,0,0]
 quorum = 2 # must have this many correct/incorrect to reduce/increase volume
 play_duration = 2
@@ -233,19 +236,32 @@ ht = HearTest(sound_name_list,key_presses,ops,quorum,
 pt = HearTest(sound_name_list,key_presses,practice_ops,quorum,
              monitor_idx=1, beamer_idx=1,practice=1)
 
-htv = HTestVerkehr(ht,pt,over_thresh=35)
+htv = HTestVerkehr(ht,pt,over_thresh=40)
 sounddata = htv.go()
 
 
-a = Block(sounddata,"audschwank","empty",["3","4","7","8"],"audio",25,1,0)
-b = Block(sounddata,"audschwank","visschwank_selten",["3","4","7","8"],"audio",25,1,0,direction=1)
-c = Block(sounddata,"empty","visschwank",["3","4","7","8"],"video",5,0,2)
-d = Block(sounddata,"empty","empty",["3","4","7","8"],"none",5,0,2)
+a = Block(sounddata,"audschwank","empty",["3","4","7","8"],"audio",10,1,0,name="Audio modulations only")
+b = Block(sounddata,"audschwank","visschwank_selten",["3","4","7","8"],"audio",10,1,0,name="Infrequent visual modulations, attend audio modulations only")
+c = Block(sounddata,"empty","visschwank",["3","4","7","8"],"video",5,0,2,name="Visual modulationsn only")
+d = Block(sounddata,"empty","empty",["3","4","7","8"],"none",5,0,2,name="No modulations")
            
-#a.go()            
-b.go()
-#c.go()
-#d.go()
+results = []
+results += a.go()            
+results += b.go()
+#results += c.go()
+#results += d.go()
+
+now = datetime.datetime.now()
+filename = filedialog.asksaveasfilename(filetypes=(("Text file","*.txt"),("All files","*.*")))
+
+if filename:
+    with open(filename,"w") as file:
+        file.write("Subject {sub}, recorded on {d}.{m}.{y}, {h}:{mi}\n".format(
+          sub="test",d=now.day,m=now.month,y=now.year,h=now.hour,mi=now.minute))
+        file.write("Index\tBlock\tWavfile\tLaut\tAngenehm\n")
+        for res in results:
+           file.write("{idx}\t{block}\t{name}\t{laut}\t{angenehm}\n".format(
+             idx=res[0],block=res[1],name=res[2],laut=res[3][0],angenehm=res[3][1]))       
             
             
             
