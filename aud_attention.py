@@ -266,6 +266,7 @@ htv = HTestVerkehr(ht,pt,over_thresh=40)
 sounddata = htv.go()
 
 
+<<<<<<< HEAD
 a = Block(sounddata,"audschwank","empty",["3","4","7","8"],"audio",50,1,0,name="Audio modulations only", beamer_fps=85)
 b = Block(sounddata,"audschwank","visschwank_selten",["3","4","7","8"],"audio",50,1,0,name="Infrequent visual modulations, attend audio modulations only", beamer_fps=85)
 c = Block(sounddata,"empty","visschwank",["3","4","7","8"],"video",50,1,0,name="Visual modulations only", beamer_fps=85)
