@@ -405,8 +405,8 @@ class HearTest():
                           idx=thrsh[0],name=thrsh[1],right=thrsh[2],left=thrsh[3]))       
 
         monitor.close()
-        if not np.isnan(beamer_idx):
-            beamer.close()
+#        if not np.isnan(beamer_idx):  # for some reason closing the beamer crashes it
+#            beamer.close()
         return thresh_results
 
 class HTestVerkehr():    
@@ -418,8 +418,6 @@ class HTestVerkehr():
         self.quit = 0
     def HTest_callback(self):
         self.Threshs = self.HTest.go()
-#        self.master.destroy()
-#        self.master_init()
     def PTest_callback(self):
         self.PracTest.go()
     def LoadThresh_callback(self):

@@ -118,11 +118,12 @@ class RatingBar():
         return self.rval
                     
 class RBarVerkehr():
-    def __init__(self,RBarList,win,duration=-1,extra_vis=[]):
+    def __init__(self,RBarList,win,duration=-1,extra_vis=[],fps=60):
         self.RBarList = RBarList
         self.duration = duration
         self.extra_vis = extra_vis
         self.win = win
+        self.fps = fps
     def go(self):
         key = pyglet.window.key
         keyboard = key.KeyStateHandler()
@@ -145,7 +146,7 @@ class RBarVerkehr():
             for ev in self.extra_vis:
                 ev.draw()
             self.win.flip()
-        for f in range(30):  #TODO: make this adapt to refresh rate
+        for f in range(int(self.fps*0.5)):
             for rb in self.RBarList:
                 rb.draw()
             for ev in self.extra_vis:

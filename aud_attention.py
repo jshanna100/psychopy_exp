@@ -8,16 +8,20 @@ import pickle
 from pyglet.window import key
 import _thread
 import time
+import datetime
+from tkinter import filedialog
 
-def aud_schwank(snd,schw_length,schw_step):
+def aud_schwank(snd,schw_length,schw_step,port,aud_trig):
     t = time.clock()
     t_end = t + schw_length
     t_next = t + schw_step
+    port.setData(aud_trig)
     while t<t_end:
         t = time.clock()
         if t > t_next:
             snd.setVolume((1-np.sin(np.pi*((t_end-t)/schw_length)))*0.5+0.5)
             t_next = t + schw_step
+    port.setData(0)
 
 def col_anim(beg,end,steps):
     # make color animations, put in start and finish RGB values and how many frames
@@ -73,7 +77,9 @@ class Block():
         core.quit()
     
     def __init__(self,sounddata,audschwank,visschwank,keys,beachten,play_len,
-                 monitor_idx,beamer_idx,direction=-1,name="Experiment"):
+                 monitor_idx,beamer_idx,name="Experiment",monitor_fps=0,beamer_fps=0,
+                 instruct="Instructions",aud_schw_len=0.5,vis_schw_len=0.5,
+                 aud_trig=100,vis_trig=200):
         self.sounddata = sounddata
         sounds = {}
         for s in list(sounddata.keys()):
@@ -86,10 +92,17 @@ class Block():
         self.monitor_idx = monitor_idx
         self.beamer_idx = beamer_idx
         self.beachten = beachten
-        self.direction = direction
         self.name = name
+        self.monitor_fps = monitor_fps
+        self.beamer_fps = beamer_fps
+        self.instruct = instruct
+        self.aud_trig = aud_trig
+        self.vis_trig = vis_trig
+        self.aud_schw_len = aud_schw_len
+        self.vis_schw_len = vis_schw_len
         
     def go(self):
+        ratings = []
         # get the schwank
         with open(self.audschwank,"rb") as f:
             audschwank = pickle.load(f)
@@ -100,23 +113,34 @@ class Block():
         back_color = (0.5,0.5,0.5)
         monitor = visual.Window(size=(700,700),color=back_color,
                                 screen=self.monitor_idx,winType="pyglet")
+        
         self.monitor = monitor
         monitor.waitBlanking = False
         beamer = visual.Window(color=back_color,screen=self.beamer_idx,
-                                   fullscr=False,size=(1280,1024),winType="pyglet")
+                                       fullscr=False,size=(1280,1024),winType="pyglet")
         self.beamer = beamer
         beamer.waitBlanking = False
-        monitor_fps = np.round(1/monitor.monitorFramePeriod).astype(int)
-        beamer_fps = np.round(1/beamer.monitorFramePeriod).astype(int)
+            
+        if not self.monitor_fps:
+            self.monitor_fps = np.round(1/monitor.monitorFramePeriod).astype(int)
+        if not self.beamer_fps:  
+            self.beamer_fps = np.round(1/beamer.monitorFramePeriod).astype(int)
         
-        print("Monitor fps: " + str(monitor_fps))
-        print("Beamer fps: " + str(beamer_fps))
+        print("Monitor fps: " + str(self.monitor_fps))
+        print("Beamer fps: " + str(self.beamer_fps))
              
+        instruct_disp = {}
+        instruct_disp["instruct"] = visual.TextStim(win=beamer,text=self.instruct,color=(0,0,0),
+                  pos=(0,0),height=0.3)
+  
         panel_disp = {}
         panel_disp["title"] = visual.TextStim(win=monitor,text=self.name,
-                  pos=(-0.8,0.8),height=0.09,color=(0,0,0),alignHoriz="left")
+                  pos=(-0.8,0.8),height=0.07,color=(0,0,0),alignHoriz="left")
         panel_disp["progress"] = visual.TextStim(win=monitor,text="Trial: ",
           pos=(-0.8,0.65),height=0.09,color=(0,0,0),alignHoriz="left")
+        panel_disp["status"] = visual.TextStim(win=monitor,
+                  text="",color=(0,0,0),
+                  pos=(0,0),height=0.1)        
         
         pause_disp = {}
         pause_disp["panel_flash"] = visual.TextStim(win=monitor,
@@ -149,8 +173,15 @@ class Block():
         extra_vis_ang.append(visual.TextStim(win=beamer,text="angenehm",pos=(0.8,-0.2),height=0.07,color=(0,0,0),bold=True))
         extra_vis_ang.append(visual.TextStim(win=beamer,text="Wie un/angenehm empfandest Du den Ton eben?",pos=(0.5,0.75),height=0.07,color=(0,0,0)))
         
-        rbv = RBarVerkehr([volume,angenehm],beamer,extra_vis=extra_vis_vol+extra_vis_ang)
+        rbv = RBarVerkehr([volume,angenehm],beamer,extra_vis=extra_vis_vol+extra_vis_ang,fps=85)
         
+        # instructions
+        panel_disp["status"].text = "Subject reading instructions..."
+        while not event.getKeys(["0","1","2","3","4","5","6","7","8","9"]):
+            self.draw_visobjs({**panel_disp,**instruct_disp})
+            monitor.flip()
+            beamer.flip()
+        panel_disp["status"].text = ""
         # randomly cycle through sounds
         keys = list(self.sounds.keys())
         reihenfolge = np.array(range(len(keys)))
@@ -159,68 +190,66 @@ class Block():
             # update panel
             panel_disp["progress"].text="Trial: {} of {}".format(abs_idx+1,
                       len(reihenfolge))
+            panel_disp["status"].text = "Subject is receiving stimuli..."
             # load sound, create sound Schwankung
             snd = self.sounds[keys[sound_idx]]
             # load Schwankungen
-            aschw = np.round(audschwank[keys[sound_idx]]*beamer_fps*1e-3).astype(int)
-            vschw = np.round(visschwank[keys[sound_idx]]*beamer_fps*1e-3).astype(int)
+            aschw = np.round(audschwank[keys[sound_idx]]*self.beamer_fps*1e-3).astype(int)
+            vschw = np.round(visschwank[keys[sound_idx]]*self.beamer_fps*1e-3).astype(int)
             
             event.clearEvents()
-            aud_check_keys = 0
-            vid_check_keys = 0
-            snd.play(loops=10)
-            event.clearEvents()
-            port.setData(0)
-            for f in range(self.play_len*beamer_fps):
-                if self.beachten=="audio":
-                    trigger = 10
-                elif self.beachten=="video":
-                    trigger = 20
-                else:
-                    trigger = 30
-
+            snd.play(loops=20)
+            vis_check = 0
+            aud_check = 0
+            for f in range(self.play_len*self.beamer_fps):
                 if f in aschw:
-                    aud_check_keys = beamer_fps
-                    _thread.start_new_thread(aud_schwank,(snd,1.5,0.005))
+                    _thread.start_new_thread(aud_schwank,(snd,self.aud_schw_len,0.005,port,self.aud_trig))
+                    aud_check = int(self.beamer_fps*self.aud_schw_len)
+                    panel_disp["status"].text = "AUDITORY MODULATION"
+                    panel_disp["status"].color = (1,0,0)
                 if f in vschw:
-                    fixation.color = col_anim((0,0,0),(0.25,0.25,0.25),beamer_fps//4) + \
-                      col_anim((0.25,0.25,0.25),(0,0,0),beamer_fps//4)
-                    vid_check_keys = beamer_fps
-                if aud_check_keys > 0:
-                    if event.getKeys(self.keys) and self.beachten == "audio":
-                        trigger += 1
-                    aud_check_keys -= 1
-                if vid_check_keys > 0:
-                    if event.getKeys(self.keys) and self.beachten == "visual":
-                        trigger += 1
-                    vid_check_keys -= 1
-                event.clearEvents()
-                port.setData(trigger)
-                
+                    fixation.color = col_anim((0,0,0),(0.25,0.25,0.25),self.beamer_fps//4) + \
+                      col_anim((0.25,0.25,0.25),(0,0,0),self.beamer_fps//4)
+                    vis_check = int(self.beamer_fps*self.vis_schw_len)
+                    port.setData(self.vis_trig)
+                    panel_disp["status"].text = "VISUAL MODULATION"
+                    panel_disp["status"].color = (1,0,0)  
                 fixation.draw()
                 self.beamer.flip()
                 self.draw_visobjs(panel_disp)           
                 self.monitor.flip()
-            
+                if vis_check:
+                    vis_check -= 1
+                if aud_check:
+                    aud_check -= 1
+                if not vis_check and not aud_check:
+                    port.setData(0)
+                    panel_disp["status"].text = "Subject is receiving stimuli..."
+                    panel_disp["status"].color = (0,0,0)
+
             snd.stop()
             beamer.winHandle.activate()
-            rbv.go()
+            panel_disp["status"].text = "Subject is rating stimuli..."
+            self.draw_visobjs(panel_disp)
+            monitor.flip()
+            ratings.append([abs_idx,self.name,keys[sound_idx],rbv.go()])
             if "q" in event.getKeys(["q"]):
                 self.exp_quit()
         while "p" not in event.getKeys(["p"]):
-            self.draw_visobjs(pause_disp)
+            self.draw_visobjs({**panel_disp, **pause_disp})
             monitor.flip()
             beamer.flip()
         
         monitor.close()
-        beamer.close()                
+        beamer.close()
+        return ratings                
             
 
 # define and run hearing test
 sound_name_list = ["4000Hz.wav","4000_cheby.wav","4000_fftf.wav","7500Hz.wav"]
 #sound_name_list = ["7500Hz.wav"]
-key_presses = ["3","4"] # these correspond to hitting "left" and "right"
-ops = [60,30,15,7.5,3.25]
+key_presses = ["2","9"] # these correspond to hitting "left" and "right"
+ops = [40,20,10,5,2.5]
 practice_ops = [15,0,0]
 quorum = 2 # must have this many correct/incorrect to reduce/increase volume
 play_duration = 2
@@ -231,21 +260,34 @@ port = parallel.ParallelPort(address="/dev/parport0")
 ht = HearTest(sound_name_list,key_presses,ops,quorum,
              monitor_idx=1, beamer_idx=0,practice=0)
 pt = HearTest(sound_name_list,key_presses,practice_ops,quorum,
-             monitor_idx=1, beamer_idx=1,practice=1)
+             monitor_idx=1, beamer_idx=0,practice=1)
 
-htv = HTestVerkehr(ht,pt,over_thresh=35)
+htv = HTestVerkehr(ht,pt,over_thresh=40)
 sounddata = htv.go()
 
 
-a = Block(sounddata,"audschwank","empty",["3","4","7","8"],"audio",25,1,0)
-b = Block(sounddata,"audschwank","visschwank_selten",["3","4","7","8"],"audio",25,1,0,direction=1)
-c = Block(sounddata,"empty","visschwank",["3","4","7","8"],"video",5,0,2)
-d = Block(sounddata,"empty","empty",["3","4","7","8"],"none",5,0,2)
+a = Block(sounddata,"audschwank","empty",["3","4","7","8"],"audio",50,1,0,name="Audio modulations only", beamer_fps=85)
+b = Block(sounddata,"audschwank","visschwank_selten",["3","4","7","8"],"audio",50,1,0,name="Infrequent visual modulations, attend audio modulations only", beamer_fps=85)
+c = Block(sounddata,"empty","visschwank",["3","4","7","8"],"video",50,1,0,name="Visual modulations only", beamer_fps=85)
+d = Block(sounddata,"empty","empty",["3","4","7","8"],"none",50,1,0,name="No modulations", beamer_fps=85)
            
-#a.go()            
-b.go()
-#c.go()
-#d.go()
+results = []
+#results += a.go()            
+results += b.go()
+#results += c.go()
+#results += d.go()
+
+now = datetime.datetime.now()
+filename = filedialog.asksaveasfilename(filetypes=(("Text file","*.txt"),("All files","*.*")))
+
+if filename:
+    with open(filename,"w") as file:
+        file.write("Subject {sub}, recorded on {d}.{m}.{y}, {h}:{mi}\n".format(
+          sub="test",d=now.day,m=now.month,y=now.year,h=now.hour,mi=now.minute))
+        file.write("Index\tBlock\tWavfile\tLaut\tAngenehm\n")
+        for res in results:
+           file.write("{idx}\t{block}\t{name}\t{laut}\t{angenehm}\n".format(
+             idx=res[0],block=res[1],name=res[2],laut=res[3][0],angenehm=res[3][1]))       
             
             
             
