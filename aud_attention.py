@@ -11,17 +11,38 @@ import time
 import datetime
 from tkinter import filedialog
 
+def tile_audio(snd,length):
+    tile_remain, tile_iters = np.modf(length/(len(snd)//44100))
+    remain_idx = int(tile_remain*len(snd))
+    snd = np.tile(snd,(int(tile_iters),1))
+    if remain_idx:
+        snd = np.concatenate((snd,snd[:remain_idx,:]))
+    return snd
+
+def add_schwank(snd,audschwank,length):
+    for schw in np.iditer(audschwank):
+        start_idx = int(np.round(schw*44.1))
+        idx_length = length*44100
+        end_idx = int(start_idx+idx_length)      
+        for samp_count,samp_idx in enumerate(range(start_idx,end_idx)):
+            snd[samp_idx,:] = snd[samp_idx,:]*0.5 + \
+              snd[samp_idx,:]*0.5 * (1-np.sin((np.pi*samp_count)/(2*idx_length)))
+    return snd
+        
+
 def aud_schwank(snd,schw_length,schw_step,port,aud_trig):
     t = time.clock()
     t_end = t + schw_length
     t_next = t + schw_step
-    port.setData(aud_trig)
+    if port:
+        port.setData(aud_trig)
     while t<t_end:
         t = time.clock()
         if t > t_next:
             snd.setVolume((1-np.sin(np.pi*((t_end-t)/schw_length)))*0.5+0.5)
             t_next = t + schw_step
-    port.setData(0)
+    if port:
+        port.setData(0)
 
 def col_anim(beg,end,steps):
     # make color animations, put in start and finish RGB values and how many frames
@@ -79,14 +100,11 @@ class Block():
     def __init__(self,sounddata,audschwank,visschwank,keys,beachten,play_len,
                  monitor_idx,beamer_idx,name="Experiment",monitor_fps=0,beamer_fps=0,
                  instruct="Instructions",aud_schw_len=0.5,vis_schw_len=0.5,
-                 aud_trig=100,vis_trig=200):
-        self.sounddata = sounddata
-        sounds = {}
-        for s in list(sounddata.keys()):
-            sounds[s] = sound.Sound(sounddata[s])
-        self.sounds = sounds
-        self.audschwank = audschwank
-        self.visschwank = visschwank
+                 aud_trig=100,vis_trig=200,port=0):
+        with open(audschwank,"rb") as f:
+            self.audschwank = pickle.load(f)
+        with open(visschwank,"rb") as f:
+            self.visschwank = pickle.load(f)
         self.keys = keys
         self.play_len = play_len 
         self.monitor_idx = monitor_idx
@@ -100,15 +118,16 @@ class Block():
         self.vis_trig = vis_trig
         self.aud_schw_len = aud_schw_len
         self.vis_schw_len = vis_schw_len
+        self.port = port
+        sounds = {}
+        for s in list(sounddata.keys()):
+            temp_sound = tile_audio(sounddata[s],50)
+            temp_sound = add_schwank(temp_sound,audschwank[s],0.5)
+            sounds[s] = sound.Sound(temp_sound)
+        self.sounds = sounds
         
     def go(self):
         ratings = []
-        # get the schwank
-        with open(self.audschwank,"rb") as f:
-            audschwank = pickle.load(f)
-        with open(self.visschwank,"rb") as f:
-            visschwank = pickle.load(f)
-        
         # set up the monitors
         back_color = (0.5,0.5,0.5)
         monitor = visual.Window(size=(700,700),color=back_color,
@@ -194,16 +213,16 @@ class Block():
             # load sound, create sound Schwankung
             snd = self.sounds[keys[sound_idx]]
             # load Schwankungen
-            aschw = np.round(audschwank[keys[sound_idx]]*self.beamer_fps*1e-3).astype(int)
-            vschw = np.round(visschwank[keys[sound_idx]]*self.beamer_fps*1e-3).astype(int)
+            aschw = np.round(self.audschwank[keys[sound_idx]]*self.beamer_fps*1e-3).astype(int)
+            vschw = np.round(self.visschwank[keys[sound_idx]]*self.beamer_fps*1e-3).astype(int)
             
             event.clearEvents()
-            snd.play(loops=20)
+            snd.play()
             vis_check = 0
             aud_check = 0
             for f in range(self.play_len*self.beamer_fps):
                 if f in aschw:
-                    _thread.start_new_thread(aud_schwank,(snd,self.aud_schw_len,0.005,port,self.aud_trig))
+                    #_thread.start_new_thread(aud_schwank,(snd,self.aud_schw_len,0.001,self.port,self.aud_trig))
                     aud_check = int(self.beamer_fps*self.aud_schw_len)
                     panel_disp["status"].text = "AUDITORY MODULATION"
                     panel_disp["status"].color = (1,0,0)
@@ -211,7 +230,8 @@ class Block():
                     fixation.color = col_anim((0,0,0),(0.25,0.25,0.25),self.beamer_fps//4) + \
                       col_anim((0.25,0.25,0.25),(0,0,0),self.beamer_fps//4)
                     vis_check = int(self.beamer_fps*self.vis_schw_len)
-                    port.setData(self.vis_trig)
+                    if self.port:
+                        self.port.setData(self.vis_trig)
                     panel_disp["status"].text = "VISUAL MODULATION"
                     panel_disp["status"].color = (1,0,0)  
                 fixation.draw()
@@ -223,7 +243,8 @@ class Block():
                 if aud_check:
                     aud_check -= 1
                 if not vis_check and not aud_check:
-                    port.setData(0)
+                    if self.port:
+                        self.port.setData(0)
                     panel_disp["status"].text = "Subject is receiving stimuli..."
                     panel_disp["status"].color = (0,0,0)
 
@@ -254,8 +275,10 @@ practice_ops = [15,0,0]
 quorum = 2 # must have this many correct/incorrect to reduce/increase volume
 play_duration = 2
 jitter_range = (0.8,2)
+use_parport = 0
 
-port = parallel.ParallelPort(address="/dev/parport0")
+if use_parport:
+    port = parallel.ParallelPort(address="/dev/parport0")
 
 ht = HearTest(sound_name_list,key_presses,ops,quorum,
              monitor_idx=1, beamer_idx=0,practice=0)
@@ -266,8 +289,7 @@ htv = HTestVerkehr(ht,pt,over_thresh=40)
 sounddata = htv.go()
 
 
-<<<<<<< HEAD
-a = Block(sounddata,"audschwank","empty",["3","4","7","8"],"audio",50,1,0,name="Audio modulations only", beamer_fps=85)
+a = Block(sounddata,"audschwank","empty",["3","4","7","8"],"audio",50,1,0,name="Audio modulations only", beamer_fps=85,aud_schw_len=0.5)
 b = Block(sounddata,"audschwank","visschwank_selten",["3","4","7","8"],"audio",50,1,0,name="Infrequent visual modulations, attend audio modulations only", beamer_fps=85)
 c = Block(sounddata,"empty","visschwank",["3","4","7","8"],"video",50,1,0,name="Visual modulations only", beamer_fps=85)
 d = Block(sounddata,"empty","empty",["3","4","7","8"],"none",50,1,0,name="No modulations", beamer_fps=85)
