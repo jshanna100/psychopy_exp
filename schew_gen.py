@@ -24,8 +24,8 @@ sound_name_list = ["4000Hz.wav","4000_cheby.wav","4000_fftf.wav","7500Hz.wav"]
 
 schwank = {}
 for s in sound_name_list:
-    schwank[s] = np.array(reihe_gen(50000,(1,2),2500))
-    schwank[s] = np.empty(0)
+    schwank[s] = np.array(reihe_gen(50000,(9,10),2500))
+    #schwank[s] = np.empty(0)
     
-with open("empty","wb") as f:
-    pickle.dump(schwank,f)
+#with open("visselten","wb") as f:
+#    pickle.dump(schwank,f)
