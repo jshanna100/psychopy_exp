@@ -9,6 +9,7 @@ from pyglet.window import key
 import time
 import datetime
 from tkinter import filedialog
+import argparse
 
 def tile_audio(snd,length):
     tile_remain, tile_iters = np.modf(length/(len(snd)//44100))
@@ -22,10 +23,11 @@ def add_schwank(snd,audschwank,length):
     for schw in np.nditer(audschwank):
         start_idx = int(np.round(schw*44.1))
         idx_length = length*44100
-        end_idx = int(start_idx+idx_length)      
-        for samp_count,samp_idx in enumerate(range(start_idx,end_idx)):
-            snd[samp_idx,:] = snd[samp_idx,:]*0.5 + \
-              snd[samp_idx,:]*0.5 * (1-np.sin((np.pi*samp_count)/(2*idx_length)))
+        end_idx = int(start_idx+idx_length)
+        if end_idx < len(snd):
+            for samp_count,samp_idx in enumerate(range(start_idx,end_idx)):
+                snd[samp_idx,:] = snd[samp_idx,:]*0.5 + \
+                  snd[samp_idx,:]*0.5 * (1-np.sin((np.pi*samp_count)/idx_length))
     return snd
 
 def add_tone(snd,audschwank,length,add_snds):
@@ -33,12 +35,13 @@ def add_tone(snd,audschwank,length,add_snds):
     for schw_idx,schw in enumerate(np.nditer(audschwank)):
         start_idx = int(np.round(schw*44.1))
         idx_length = length*44100
-        end_idx = int(start_idx+idx_length)      
-        for samp_count,samp_idx in enumerate(range(start_idx,end_idx)):
-            snd[samp_idx,:] = snd[samp_idx,:]*0.5 + \
-              snd[samp_idx,:]*0.5 * (1-np.sin((np.pi*samp_count)/(2*idx_length)))
-            snd[samp_idx,:] += add_snds[rand_idx[schw_idx]][samp_count,:] * \
-              (np.sin((np.pi*samp_count)/(2*idx_length)))
+        end_idx = int(start_idx+idx_length)
+        if end_idx < len(snd):
+            for samp_count,samp_idx in enumerate(range(start_idx,end_idx)):
+                snd[samp_idx,:] = snd[samp_idx,:]*0.15 + \
+                  snd[samp_idx,:]*0.85 * (1-np.sin((np.pi*samp_count)/(idx_length)))
+                snd[samp_idx,:] += add_snds[rand_idx[schw_idx]][samp_count,:] * \
+                  (np.sin((np.pi*samp_count)/(idx_length)))
     return snd
 
 def aud_schwank(snd,schw_length,schw_step,port,aud_trig):
@@ -116,6 +119,7 @@ class Block():
             self.audschwank = pickle.load(f)
         with open(visschwank,"rb") as f:
             self.visschwank = pickle.load(f)
+        self.sounddata = sounddata[0]
         self.keys = keys
         self.play_len = play_len 
         self.monitor_idx = monitor_idx
@@ -133,13 +137,13 @@ class Block():
         self.id_trig = id_trig
         print("Building stimuli...")
         kurz_sounds = {}
-        for s in list(sounddata.keys()):
-            temp_sound = tile_audio(sounddata[s],aud_schw_len)
+        for s in list(self.sounddata.keys()):
+            temp_sound = tile_audio(self.sounddata[s],aud_schw_len)
             kurz_sounds[s] = temp_sound
         self.kurz_sounds = kurz_sounds
         sounds = {}
-        for s in list(sounddata.keys()):
-            temp_sound = tile_audio(sounddata[s],play_len)
+        for s in list(self.sounddata.keys()):
+            temp_sound = tile_audio(self.sounddata[s],play_len)
             if len(self.audschwank[s]):
                 if schw_or_add == "schwank":
                     temp_sound = add_schwank(temp_sound,self.audschwank[s],aud_schw_len)
@@ -323,6 +327,13 @@ quorum = 2 # must have this many correct/incorrect to reduce/increase volume
 play_duration = 2
 jitter_range = (0.8,2)
 use_parport = 0
+keys = ["3","4","7","8"]
+beamer_fps = 30
+monitor_fps = 30
+play_len = 50
+monitor_idx = 1
+beamer_idx = 0
+aud_schw_len = 0.5
 
 if use_parport:
     port = parallel.ParallelPort(address="/dev/parport0")
@@ -333,22 +344,40 @@ pt = HearTest(sound_name_list,key_presses,practice_ops,quorum,
              monitor_idx=1, beamer_idx=0,practice=1)
 
 htv = HTestVerkehr(ht,pt,over_thresh=40)
-sounddata = htv.go()
+sounddata = [htv.go()] # make it a list so it can be put in other lists without making multiple copies 
 
 results = []
-a = Block(sounddata,"audschwank","empty",["3","4","7","8"],50,1,0,name="Audio modulations only", beamer_fps=30,aud_schw_len=0.5,id_trig=1)
-results += a.go()
-del a
-b = Block(sounddata,"audadd","visselten",["3","4","7","8"],50,1,0,name="Attend infrequent visual modulations, ignore audio", beamer_fps=30,schw_or_add="add",id_trig=2)
-results += b.go()
-del b
-c = Block(sounddata,"empty","visschwank",["3","4","7","8"],50,1,0,name="Visual modulations only", beamer_fps=30,id_trig=3)
-results += c.go()
-del c
-d = Block(sounddata,"empty","empty",["3","4","7","8"],50,1,0,name="No modulations", beamer_fps=30,id_trig=4)
-results += d.go()
-del d
+params = {}
+params["a"]= {"sounddata":sounddata,"audschwank":"audschwank","visschwank":"empty",
+               "keys":keys,"play_len":play_len,"monitor_idx":monitor_idx,
+               "beamer_idx":beamer_idx,"name":"Audio modulations only",
+               "beamer_fps":beamer_fps,"aud_schw_len":aud_schw_len,"id_trig":1}
+params["b"]= {"sounddata":sounddata,"audschwank":"audadd","visschwank":"visselten",
+               "keys":keys,"play_len":play_len,"monitor_idx":monitor_idx,
+               "beamer_idx":beamer_idx,"name":"Infrequent visual modulations, ignore audio",
+               "beamer_fps":beamer_fps,"aud_schw_len":aud_schw_len,"id_trig":2,
+               "schw_or_add":"add"}
+params["c"]= {"sounddata":sounddata,"audschwank":"empty","visschwank":"visschwank",
+               "keys":keys,"play_len":play_len,"monitor_idx":monitor_idx,
+               "beamer_idx":beamer_idx,"name":"Visual modulations only",
+               "beamer_fps":beamer_fps,"aud_schw_len":aud_schw_len,"id_trig":3}
+params["d"]= {"sounddata":sounddata,"audschwank":"empty","visschwank":"empty",
+               "keys":keys,"play_len":play_len,"monitor_idx":monitor_idx,
+               "beamer_idx":beamer_idx,"name":"No modulations, count backward.",
+               "beamer_fps":beamer_fps,"aud_schw_len":aud_schw_len,"id_trig":4}
           
+# handle command line arguments
+parser = argparse.ArgumentParser()
+parser.add_argument("--order",type=str,default="abcd")
+opt = parser.parse_args()
+block_order = list(opt.order)
+if not all([x in ["a","b","c","d"] for x in block_order]):
+    raise ValueError("All blocks must be a,b,c, or d - lowercase.")
+for b in block_order:
+    blo = Block(**params[b])
+    results += blo.go()
+    del blo
+
 now = datetime.datetime.now()
 filename = filedialog.asksaveasfilename(filetypes=(("Text file","*.txt"),("All files","*.*")))
 
