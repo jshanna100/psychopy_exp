@@ -84,7 +84,7 @@ class HearTest():
 
     def __init__(self,sound_name_list,key_presses,ops,quorum,
       play_duration=2, jitter_range=(0.5,2), practice=0,
-      monitor_idx=0,beamer_idx=np.nan,monitor_fps=None,beamer_fps=None,
+      monitor_idx=0,beamer_idx=-1,monitor_fps=None,beamer_fps=None,
       back_color=(0.5,0.5,0.5),beamsize=(1280,1024),monsize=(700,700)):
         
         self.sound_name_list = sound_name_list
@@ -133,7 +133,7 @@ class HearTest():
             monitor.waitBlanking = False
             monitor_fps = np.round(1/monitor.monitorFramePeriod).astype(int)
             print("Monitor fps: " + str(monitor_fps))
-        if not np.isnan(beamer_idx):    
+        if beamer_idx > -1:    
             beamer = visual.Window(size=self.beamsize,color=back_color,screen=beamer_idx, winType="pyglet")
             if not beamer_fps:
                 beamer.waitBlanking = False
@@ -292,7 +292,7 @@ class HearTest():
                             visobjs["rightpress"].fillColor=anim_pattern
                         else:
                             visobjs["leftpress"].fillColor=anim_pattern
-                        if practice and not np.isnan(beamer_idx):
+                        if practice and beamer_idx>-1:
                             beamobjs["bericht"].visobj.text="Richtig!"
                             beamobjs["bericht"].color = col_anim(back_color,(0,1,0),beamer_fps*0.35) + \
                               col_anim((0,1,0),back_color,beamer_fps*0.35)
@@ -305,13 +305,13 @@ class HearTest():
                             visobjs["leftpress"].fillColor=anim_pattern.copy()
                         else:
                             visobjs["rightpress"].fillColor=anim_pattern.copy()
-                        if practice and not np.isnan(beamer_idx):
+                        if practice and beamer_idx>-1:
                             beamobjs["bericht"].visobj.text="Falsch!"
                             beamobjs["bericht"].color = col_anim(back_color,(1,0,0),beamer_fps*0.35) + \
                               col_anim((1,0,0),back_color,beamer_fps*0.35)
                     else:
                         accs[r].append(0)
-                        if practice and not np.isnan(beamer_idx):
+                        if practice and beamer_idx>-1:
                             beamobjs["bericht"].visobj.text="Verpasst!"
                             beamobjs["bericht"].color = col_anim(back_color,(1,0,0),beamer_fps*0.35) + \
                               col_anim((1,0,0),back_color,beamer_fps*0.35)
@@ -327,7 +327,7 @@ class HearTest():
                     jitter = jitter_range[0]+np.random.rand()*(jitter_range[1]-jitter_range[0])
                     for f_idx in range(int(monitor_fps*jitter)):
                         self.draw_visobjs(visobjs)
-                        if not np.isnan(beamer_idx):
+                        if beamer_idx>-1:
                             self.draw_visobjs(beamobjs)
                             beamer.flip()
                         monitor.flip()
@@ -350,6 +350,8 @@ class HearTest():
                             visobjs["message"].color = (1,0,0)
                         if abort == 2:
                             monitor.close()
+                            if beamer_idx > -1:
+                                beamer.close()
                             return ([],0)
                     if abort == 1 and "n" in event.getKeys(["n"]):
                         abort = 0
@@ -405,8 +407,8 @@ class HearTest():
                           idx=thrsh[0],name=thrsh[1],right=thrsh[2],left=thrsh[3]))       
 
         monitor.close()
-#        if not np.isnan(beamer_idx):  # for some reason closing the beamer crashes it
-#            beamer.close()
+        if not beamer_idx>-1:  # for some reason closing the beamer crashes it
+            beamer.close()
         return thresh_results
 
 class HTestVerkehr():    
