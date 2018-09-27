@@ -188,7 +188,7 @@ class Block():
         
         instruct_disp = {}
         instruct_disp["instruct"] = visual.TextStim(win=beamer,text=self.instruct,color=(0,0,0),
-                  pos=(0,0),height=0.3)
+                  pos=(0,0),height=0.1)
   
         panel_disp = {}
         panel_disp["title"] = visual.TextStim(win=monitor,text=self.name,
@@ -212,12 +212,12 @@ class Block():
                  pos=(0,0.3),height=0.15))  
         
         # set up rating bars
-        down_butts = [key._3]
-        up_butts = [key._4]
-        conf_ud_butts = [key._1]
-        left_butts = [key._7]
-        right_butts = [key._8]
-        conf_lr_butts = [key._0]
+        down_butts = [key._2]
+        up_butts = [key._3]
+        conf_ud_butts = [key._5]
+        left_butts = [key._8]
+        right_butts = [key._9]
+        conf_lr_butts = [key._6]
         
         extra_vis_vol = []
         extra_vis_ang = []
@@ -237,6 +237,7 @@ class Block():
         rbv = RBarVerkehr([volume,angenehm],beamer,extra_vis=extra_vis_vol+extra_vis_ang,fps=85)
         
         # instructions
+        event.clearEvents()
         panel_disp["status"].text = "Subject reading instructions..."
         while not event.getKeys(["0","1","2","3","4","5","6","7","8","9"]):
             self.draw_visobjs({**panel_disp,**instruct_disp})
@@ -328,8 +329,7 @@ class Block():
                                       col_anim((1,0,0),self.back_color,self.beamer_fps)
                 if ans_timer:
                     ans_timer -=1
-                
-                
+                               
                 if not vis_check and not aud_check and not ans_timer:
                     if self.port:
                         self.port.setData(0)
@@ -342,6 +342,8 @@ class Block():
                 self.monitor.flip()
 
             snd.stop()
+            if self.port:
+                self.port.setData(0)
             beamer.winHandle.activate()
             panel_disp["status"].text = "Subject is rating stimuli..."
             self.draw_visobjs(panel_disp)
@@ -361,72 +363,86 @@ class Block():
 
 # define and run hearing test
 sound_name_list = ["4000Hz.wav","4000_cheby.wav","4000_fftf.wav","7500Hz.wav"]
-#sound_name_list = ["7500Hz.wav"]
-key_presses = ["2","9"] # these correspond to hitting "left" and "right"
+hear_keys = ["9","2"] # these correspond to hitting "left" and "right"
 ops = [40,20,10,5,2.5]
 practice_ops = [15,0,0]
 quorum = 2 # must have this many correct/incorrect to reduce/increase volume
 play_duration = 2
 jitter_range = (0.8,2)
-use_parport = 0
-keys = ["3","4","7","8"]
-beamer_fps = 30
-monitor_fps = 30
+use_parport = 1
+keys = ["2","9"]
+beamer_fps = 60
+monitor_fps = 60
 play_len = 50
 monitor_idx = 1
 beamer_idx = 0
 aud_schw_len = 0.5
+port = 0
+
+
+instructA = "Aufmerksamkeit: achte genau auf die Töne (die Augen bleiben auf dem Kreuz).\nAufgabe: bemerke Schwankungen in der Lautstärke und drücke die Zeigefinger-Taste."
+instructB = "Aufmerksamkeit: achte genau auf das Kreuz, NICHT auf die Töne.\nAufgabe: bemerke Schwankungen in der Helligkeit und drücke die Zeigefinger-Taste."
+instructC = "Aufmerksamkeit: achte auf das Kreuz.\nAufgabe: bemerke Schwankungen in der Helligkeit und drücke die Zeigefinger-Taste."
+instructD = "Aufmerksamkeit: keine besondere Aufmerksamkeit (nur die Augen bleiben mittig).\nAufgabe: zähle innerlich rückwärts von 700 (also 699 - 698 - 697 usw.) am Ende sagst Du uns, bei welcher Zahl Du gelandet bist."
 
 if use_parport:
     port = parallel.ParallelPort(address="/dev/parport0")
 
-ht = HearTest(sound_name_list,key_presses,ops,quorum,
+ht = HearTest(sound_name_list,hear_keys,ops,quorum,
              monitor_idx=1, beamer_idx=0,practice=0)
-pt = HearTest(sound_name_list,key_presses,practice_ops,quorum,
+pt = HearTest(sound_name_list,hear_keys,practice_ops,quorum,
              monitor_idx=1, beamer_idx=0,practice=1)
 
 htv = HTestVerkehr(ht,pt,over_thresh=40)
 sounddata = [htv.go()] # make it a list so it can be put in other lists without making multiple copies 
-
-results = []
 params = {}
 params["a"]= {"sounddata":sounddata,"audschwank":"audschwank","visschwank":"empty",
                "torespond":"audschwank","keys":keys,"play_len":play_len,"monitor_idx":monitor_idx,
-               "beamer_idx":beamer_idx,"name":"Audio modulations only",
+               "beamer_idx":beamer_idx,"name":"Audio modulations only","port":port,
                "beamer_fps":beamer_fps,"aud_schw_len":aud_schw_len,"id_trig":1,
-               "practice":1}
+                "instruct":instructA}
 params["b"]= {"sounddata":sounddata,"audschwank":"audadd","visschwank":"visselten",
-               "keys":keys,"play_len":play_len,"monitor_idx":monitor_idx,
-               "beamer_idx":beamer_idx,"name":"Infrequent visual modulations, ignore audio",
+               "keys":keys,"play_len":play_len,"monitor_idx":monitor_idx,"port":port,
+               "torespond":"visselten","beamer_idx":beamer_idx,"name":"Infrequent visual modulations, ignore audio",
                "beamer_fps":beamer_fps,"aud_schw_len":aud_schw_len,"id_trig":2,
-               "schw_or_add":"add"}
+               "schw_or_add":"add","instruct":instructB}
 params["c"]= {"sounddata":sounddata,"audschwank":"empty","visschwank":"visschwank",
                "torespond":"visschwank","keys":keys,"play_len":play_len,"monitor_idx":monitor_idx,
-               "beamer_idx":beamer_idx,"name":"Visual modulations only",
+               "beamer_idx":beamer_idx,"name":"Visual modulations only","port":port,
                "beamer_fps":beamer_fps,"aud_schw_len":aud_schw_len,"id_trig":3,
-               "practice":1}
+                "instruct":instructC}
 params["d"]= {"sounddata":sounddata,"audschwank":"empty","visschwank":"empty",
-               "keys":keys,"play_len":play_len,"monitor_idx":monitor_idx,
+               "torespond":"empty","keys":keys,"play_len":play_len,"monitor_idx":monitor_idx,"port":port,
                "beamer_idx":beamer_idx,"name":"No modulations, count backward.",
-               "beamer_fps":beamer_fps,"aud_schw_len":aud_schw_len,"id_trig":4}
+               "beamer_fps":beamer_fps,"aud_schw_len":aud_schw_len,"id_trig":4,
+                "instruct":instructD}
 params["i"]= {"sounddata":sounddata,"audschwank":"audprac","visschwank":"empty",
-               "keys":keys,"play_len":play_len,"monitor_idx":monitor_idx,
-               "beamer_idx":beamer_idx,"name":"No modulations, count backward.",
+               "torespond":"audprac","keys":keys,"play_len":15,"monitor_idx":monitor_idx,
+               "beamer_idx":beamer_idx,"name":"Practice round: audio","port":port,
                "beamer_fps":beamer_fps,"aud_schw_len":aud_schw_len,"id_trig":5,
-               "practice":1}
+               "practice":1,"instruct":instructA}
 params["j"]= {"sounddata":sounddata,"audschwank":"empty","visschwank":"visprac",
-               "keys":keys,"play_len":play_len,"monitor_idx":monitor_idx,
-               "beamer_idx":beamer_idx,"name":"No modulations, count backward.",
-               "beamer_fps":beamer_fps,"aud_schw_len":aud_schw_len,"id_trig":5,
-               "practice":1}
+               "torespond":"visprac","keys":keys,"play_len":15,"monitor_idx":monitor_idx,
+               "beamer_idx":beamer_idx,"name":"Practice round: visual","port":port,
+               "beamer_fps":beamer_fps,"aud_schw_len":aud_schw_len,"id_trig":6,
+               "practice":1,"instruct":instructC}
           
 # handle command line arguments
 parser = argparse.ArgumentParser()
 parser.add_argument("--order",type=str,default="abcd")
+parser.add_argument("--prac",type=str,default="")
 opt = parser.parse_args()
 block_order = list(opt.order)
+prac_order = list(opt.prac)
 if not all([x in ["a","b","c","d"] for x in block_order]):
     raise ValueError("All blocks must be a,b,c, or d - lowercase.")
+if not all([x in ["i","j"] for x in prac_order]):
+    raise ValueError("All practice blocks must be i or j - lowercase.")
+for p in prac_order:
+    blo = Block(**params[p])
+    blo.go()
+    del blo
+results = []
 for b in block_order:
     blo = Block(**params[b])
     results += blo.go()
