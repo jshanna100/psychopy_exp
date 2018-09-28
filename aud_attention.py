@@ -99,6 +99,21 @@ class VisObj():
             self.visobj.color = self.color.pop(0)
         self.visobj.draw()
 
+class TriggerSet():
+    def __init__(self,port):
+        self.port = port
+    def set_val(self,value):
+        if port==-1:
+            return
+        else:
+            port.setData(value)
+    def reset(self):
+        if port==-1:
+            return
+        else:
+            port.setData(0)
+        
+
 class Block():
     
     def draw_visobjs(self,visobjs):
@@ -135,7 +150,7 @@ class Block():
         self.vis_trig = vis_trig
         self.aud_schw_len = aud_schw_len
         self.vis_schw_len = vis_schw_len
-        self.port = port
+        self.port = TriggerSet(port)
         self.schw_or_add = schw_or_add
         self.id_trig = id_trig
         self.practice = practice
@@ -246,14 +261,7 @@ class Block():
         panel_disp["status"].text = ""
         
         # send id trigger, to confirm what block we're in
-        if self.port:
-            self.port.setData(0)
-            for f in range(int(self.beamer_fps*0.1)):
-                beamer.flip()
-            self.port.setData(self.id_trig)
-            for f in range(int(self.beamer_fps*0.1)):
-                beamer.flip()
-            self.port.setData(0)
+        self.port.setval(self.id_trig)
         
         # randomly cycle through sounds
         keys = list(self.sounds.keys())
@@ -272,11 +280,7 @@ class Block():
             toresp = np.round(self.torespond[keys[sound_idx]]*self.beamer_fps*1e-3).astype(int)
             
             # send trigger, offset of which indicates start of sound
-            if self.port:
-                self.port.setData(self.stim_start_trig)
-                for f in range(int(self.beamer_fps*0.1)):
-                    beamer.flip()
-                self.port.setData(0)
+            self.port.set_val(sound_idx)
             snd.play()
             
             # run modulations
@@ -290,14 +294,12 @@ class Block():
                     aud_check = int(self.beamer_fps*self.aud_schw_len)
                     panel_disp["status"].text = "AUDITORY MODULATION"
                     panel_disp["status"].color = (1,0,0)
-                    if self.port:
-                        self.port.setData(self.aud_trig)
+                    beamer.callOnFlip(self.port.set_val,self.aud_trig)
                 if f in vschw:
                     beam_disp["fixation"].color = col_anim((0,0,0),(0.25,0.25,0.25),self.beamer_fps//4) + \
                       col_anim((0.25,0.25,0.25),(0,0,0),self.beamer_fps//4)
                     vis_check = int(self.beamer_fps*self.vis_schw_len)
-                    if self.port:
-                        self.port.setData(self.vis_trig)
+                    beamer.callOnFlip(self.port.set_val,self.vis_trig)
                     panel_disp["status"].text = "VISUAL MODULATION"
                     panel_disp["status"].color = (1,0,0)
                 if f in toresp :
@@ -341,9 +343,9 @@ class Block():
                 self.draw_visobjs(panel_disp)           
                 self.monitor.flip()
 
+            self.port.reset()
             snd.stop()
-            if self.port:
-                self.port.setData(0)
+            
             beamer.winHandle.activate()
             panel_disp["status"].text = "Subject is rating stimuli..."
             self.draw_visobjs(panel_disp)
@@ -399,32 +401,32 @@ params = {}
 params["a"]= {"sounddata":sounddata,"audschwank":"audschwank","visschwank":"empty",
                "torespond":"audschwank","keys":keys,"play_len":play_len,"monitor_idx":monitor_idx,
                "beamer_idx":beamer_idx,"name":"Audio modulations only","port":port,
-               "beamer_fps":beamer_fps,"aud_schw_len":aud_schw_len,"id_trig":1,
+               "beamer_fps":beamer_fps,"aud_schw_len":aud_schw_len,"id_trig":10,
                 "instruct":instructA}
 params["b"]= {"sounddata":sounddata,"audschwank":"audadd","visschwank":"visselten",
                "keys":keys,"play_len":play_len,"monitor_idx":monitor_idx,"port":port,
                "torespond":"visselten","beamer_idx":beamer_idx,"name":"Infrequent visual modulations, ignore audio",
-               "beamer_fps":beamer_fps,"aud_schw_len":aud_schw_len,"id_trig":2,
+               "beamer_fps":beamer_fps,"aud_schw_len":aud_schw_len,"id_trig":20,
                "schw_or_add":"add","instruct":instructB}
 params["c"]= {"sounddata":sounddata,"audschwank":"empty","visschwank":"visschwank",
                "torespond":"visschwank","keys":keys,"play_len":play_len,"monitor_idx":monitor_idx,
                "beamer_idx":beamer_idx,"name":"Visual modulations only","port":port,
-               "beamer_fps":beamer_fps,"aud_schw_len":aud_schw_len,"id_trig":3,
+               "beamer_fps":beamer_fps,"aud_schw_len":aud_schw_len,"id_trig":30,
                 "instruct":instructC}
 params["d"]= {"sounddata":sounddata,"audschwank":"empty","visschwank":"empty",
                "torespond":"empty","keys":keys,"play_len":play_len,"monitor_idx":monitor_idx,"port":port,
                "beamer_idx":beamer_idx,"name":"No modulations, count backward.",
-               "beamer_fps":beamer_fps,"aud_schw_len":aud_schw_len,"id_trig":4,
+               "beamer_fps":beamer_fps,"aud_schw_len":aud_schw_len,"id_trig":40,
                 "instruct":instructD}
 params["i"]= {"sounddata":sounddata,"audschwank":"audprac","visschwank":"empty",
                "torespond":"audprac","keys":keys,"play_len":15,"monitor_idx":monitor_idx,
                "beamer_idx":beamer_idx,"name":"Practice round: audio","port":port,
-               "beamer_fps":beamer_fps,"aud_schw_len":aud_schw_len,"id_trig":5,
+               "beamer_fps":beamer_fps,"aud_schw_len":aud_schw_len,"id_trig":50,
                "practice":1,"instruct":instructA}
 params["j"]= {"sounddata":sounddata,"audschwank":"empty","visschwank":"visprac",
                "torespond":"visprac","keys":keys,"play_len":15,"monitor_idx":monitor_idx,
                "beamer_idx":beamer_idx,"name":"Practice round: visual","port":port,
-               "beamer_fps":beamer_fps,"aud_schw_len":aud_schw_len,"id_trig":6,
+               "beamer_fps":beamer_fps,"aud_schw_len":aud_schw_len,"id_trig":60,
                "practice":1,"instruct":instructC}
           
 # handle command line arguments
