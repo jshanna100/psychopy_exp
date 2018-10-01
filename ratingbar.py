@@ -89,8 +89,6 @@ class RatingBar():
             vis.draw()
           
     def set_val(self,new_val):
-        r2a = self.r2a
-        midline_pos = self.midline_pos
         if new_val=="incr":
             new_val = self.rval + self.incr
         elif new_val=="decr":
@@ -99,11 +97,10 @@ class RatingBar():
             new_val = np.round(new_val)
         self.rval = new_val
         
-        
-        new_dim = r2a.resize((abs(new_val-midline_pos)/2,1))
+        new_dim = self.r2a.resize((abs(new_val-self.midline_pos)/2,1))
         self.visobjs["valrect"].visobj.width = new_dim[0]
         self.visobjs["valrect"].visobj.height = new_dim[1]
-        self.visobjs["valrect"].visobj.pos = r2a(((midline_pos+new_val)/2,0))
+        self.visobjs["valrect"].visobj.pos = self.r2a(((self.midline_pos+new_val)/2,0))
         if new_val < self.midline_pos:           
             self.visobjs["valrect"].visobj.fillColor = self.undercolor
         if new_val > self.midline_pos:
@@ -116,6 +113,15 @@ class RatingBar():
         fossil = col_anim((0.9,0.9,0.9),(0.3,0.3,0.3),10)
         vo.fillColor = flash + fossil
         return self.rval
+    def unconfirm(self):
+        restore_color = self.undercolor if self.rval < 0 else self.overcolor
+        vo = self.visobjs["valrect"]
+        flash = col_anim((0.3,0.3,0.3),(0.9,0.9,0.9),10)
+        entfossil = col_anim((0.9,0.9,0.9),restore_color,10)
+        vo.fillColor = flash + entfossil
+        return np.nan
+
+
                     
 class RBarVerkehr():
     def __init__(self,RBarList,win,duration=-1,extra_vis=[],fps=60):
@@ -133,14 +139,18 @@ class RBarVerkehr():
         butt_lists = [[rb.decr_butts,rb.incr_butts,rb.conf_butts] for rb in self.RBarList]
         rates = np.ones(len(self.RBarList))*np.nan # ratings stored here
         # check for all possible button presses and react accordingly
-        while np.any(np.isnan(rates)):
+        while any(np.isnan(rates)):
             for rb_idx,bl in enumerate(butt_lists):
                 if any([keyboard[x] for x in bl[0]]) and self.RBarList[rb_idx].rval>-1 and np.isnan(rates[rb_idx]): # decrease
                     self.RBarList[rb_idx].set_val("decr")
                 if any([keyboard[x] for x in bl[1]]) and self.RBarList[rb_idx].rval<1 and np.isnan(rates[rb_idx]): # increase
                     self.RBarList[rb_idx].set_val("incr")
-                if any([keyboard[x] for x in bl[2]]) and np.isnan(rates[rb_idx]): # confirm
-                    rates[rb_idx] = self.RBarList[rb_idx].confirm()
+                if any([keyboard[x] for x in bl[2]]): # confirm or unconfirm
+                    if np.isnan(rates[rb_idx]):
+                        rates[rb_idx] = self.RBarList[rb_idx].confirm()
+                    else:
+                        rates[rb_idx] = self.RBarList[rb_idx].unconfirm()
+                    keyboard.clear()
             for rb in self.RBarList:
                 rb.draw()
             for ev in self.extra_vis:

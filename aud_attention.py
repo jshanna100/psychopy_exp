@@ -113,7 +113,6 @@ class TriggerSet():
         else:
             port.setData(0)
         
-
 class Block():
     
     def draw_visobjs(self,visobjs):
@@ -203,7 +202,7 @@ class Block():
         
         instruct_disp = {}
         instruct_disp["instruct"] = visual.TextStim(win=beamer,text=self.instruct,color=(0,0,0),
-                  pos=(0,0),height=0.1)
+                  pos=(0,0),height=0.1,wrapWidth=1.8)
   
         panel_disp = {}
         panel_disp["title"] = visual.TextStim(win=monitor,text=self.name,
@@ -261,7 +260,7 @@ class Block():
         panel_disp["status"].text = ""
         
         # send id trigger, to confirm what block we're in
-        self.port.setval(self.id_trig)
+        self.port.set_val(self.id_trig)
         
         # randomly cycle through sounds
         keys = list(self.sounds.keys())
@@ -334,7 +333,7 @@ class Block():
                                
                 if not vis_check and not aud_check and not ans_timer:
                     if self.port:
-                        self.port.setData(0)
+                        self.port.reset()
                     panel_disp["status"].text = "Subject is receiving stimuli..."
                     panel_disp["status"].color = (0,0,0)
                     
@@ -369,26 +368,26 @@ hear_keys = ["9","2"] # these correspond to hitting "left" and "right"
 ops = [40,20,10,5,2.5]
 practice_ops = [15,0,0]
 quorum = 2 # must have this many correct/incorrect to reduce/increase volume
-play_duration = 2
 jitter_range = (0.8,2)
-use_parport = 1
+use_parport = 0
 keys = ["2","9"]
-beamer_fps = 60
+beamer_fps = 30
 monitor_fps = 60
-play_len = 50
+play_len = 5
 monitor_idx = 1
 beamer_idx = 0
 aud_schw_len = 0.5
-port = 0
 
 
-instructA = "Aufmerksamkeit: achte genau auf die Töne (die Augen bleiben auf dem Kreuz).\nAufgabe: bemerke Schwankungen in der Lautstärke und drücke die Zeigefinger-Taste."
-instructB = "Aufmerksamkeit: achte genau auf das Kreuz, NICHT auf die Töne.\nAufgabe: bemerke Schwankungen in der Helligkeit und drücke die Zeigefinger-Taste."
-instructC = "Aufmerksamkeit: achte auf das Kreuz.\nAufgabe: bemerke Schwankungen in der Helligkeit und drücke die Zeigefinger-Taste."
-instructD = "Aufmerksamkeit: keine besondere Aufmerksamkeit (nur die Augen bleiben mittig).\nAufgabe: zähle innerlich rückwärts von 700 (also 699 - 698 - 697 usw.) am Ende sagst Du uns, bei welcher Zahl Du gelandet bist."
+instructA = "Aufmerksamkeit: achte genau auf die Töne (die Augen bleiben auf dem Kreuz).\n\nAufgabe: bemerke Schwankungen in der Lautstärke und drücke die Zeigefinger-Taste."
+instructB = "Aufmerksamkeit: achte genau auf das Kreuz, NICHT auf die Töne.\n\nAufgabe: bemerke Schwankungen in der Helligkeit und drücke die Zeigefinger-Taste."
+instructC = "Aufmerksamkeit: achte auf das Kreuz.\n\nAufgabe: bemerke Schwankungen in der Helligkeit und drücke die Zeigefinger-Taste."
+instructD = "Aufmerksamkeit: keine besondere Aufmerksamkeit (nur die Augen bleiben mittig).\n\nAufgabe: zähle innerlich rückwärts von 700 (also 699 - 698 - 697 usw.) am Ende sagst Du uns, bei welcher Zahl Du gelandet bist."
 
 if use_parport:
     port = parallel.ParallelPort(address="/dev/parport0")
+else:
+    port = -1
 
 ht = HearTest(sound_name_list,hear_keys,ops,quorum,
              monitor_idx=1, beamer_idx=0,practice=0)
