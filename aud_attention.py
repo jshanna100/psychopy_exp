@@ -279,7 +279,7 @@ class Block():
             toresp = np.round(self.torespond[keys[sound_idx]]*self.beamer_fps*1e-3).astype(int)
             
             # send trigger, offset of which indicates start of sound
-            self.port.set_val(sound_idx)
+            self.port.set_val(sound_idx+1)
             snd.play()
             
             # run modulations
@@ -369,11 +369,11 @@ ops = [40,20,10,5,2.5]
 practice_ops = [15,0,0]
 quorum = 2 # must have this many correct/incorrect to reduce/increase volume
 jitter_range = (0.8,2)
-use_parport = 0
+use_parport = 1
 keys = ["2","9"]
-beamer_fps = 30
+beamer_fps = 60
 monitor_fps = 60
-play_len = 5
+play_len = 50
 monitor_idx = 1
 beamer_idx = 0
 aud_schw_len = 0.5
