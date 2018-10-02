@@ -117,7 +117,7 @@ class RestingState():
     
     def __init__(self,monitor_idx,beamer_idx,monitor_fps=0,beamer_fps=0,
                  start_trig=255,length=180,back_color=(0.5,0.5,0.5),
-                 text_color=(0,0,0)):
+                 text_color=(0,0,0),port=-1):
         
         self.monitor_idx = monitor_idx
         self.beamer_idx = beamer_idx
@@ -127,6 +127,7 @@ class RestingState():
         self.length = length
         self.back_color = back_color
         self.text_color = text_color
+        self.port = TriggerSet(port)
         
     def draw_visobjs(self,visobjs):
         vis_list = list(visobjs.values())
@@ -136,8 +137,7 @@ class RestingState():
     def go(self):            
 
         monitor = visual.Window(size=(700,700),color=self.back_color,
-                                screen=self.monitor_idx,winType="pyglet")
-        
+                                screen=self.monitor_idx,winType="pyglet")       
         self.monitor = monitor
         monitor.waitBlanking = False
         beamer = visual.Window(color=self.back_color,screen=self.beamer_idx,
@@ -150,6 +150,9 @@ class RestingState():
         if not self.beamer_fps:  
             self.beamer_fps = np.round(1/beamer.monitorFramePeriod).astype(int)
             
+        print("Monitor fps: " + str(monitor_fps))
+        print("Beamer fps: " + str(beamer_fps))
+
         panel_disp = {}
         panel_disp["title"] = visual.TextStim(win=monitor,text="Resting State",
                   pos=(-0.8,0.8),height=0.07,color=(0,0,0),alignHoriz="left")
@@ -160,14 +163,18 @@ class RestingState():
         beam_disp["fixation"] = VisObj(visual.TextStim(win=beamer,text="X",
                  height=0.15,color=(0,0,0)))
         
+        self.port.set_val(self.start_trig)
+            
         for s_idx in range(self.length):
             panel_disp["progress"].text = "Remaining: "+ str(self.length-s_idx)
-            for f_idx in range(self.beamer_fps):
-                self.draw_visobjs(panel_disp)
+            for f_idx in range(self.beamer_fps):     
                 self.draw_visobjs(beam_disp)
-                monitor.flip()
+                self.draw_visobjs(panel_disp)   
                 beamer.flip()
-
+                monitor.flip()
+        self.port.reset()
+        monitor.close()
+        beamer.close()
 
 class Block():
     
@@ -184,7 +191,7 @@ class Block():
     def __init__(self,sounddata,audschwank,visschwank,torespond,keys,play_len,
                  monitor_idx,beamer_idx,name="Experiment",monitor_fps=0,beamer_fps=0,
                  instruct="Instructions",aud_schw_len=0.5,vis_schw_len=0.5,
-                 aud_trig=100,vis_trig=200,port=0,schw_or_add="schwank",id_trig=1,
+                 aud_trig=100,vis_trig=200,port=-1,schw_or_add="schwank",id_trig=1,
                  practice=0,stim_start_trig=50,resp_len=1,back_color=(0.5,0.5,0.5)):
         with open(audschwank,"rb") as f:
             self.audschwank = pickle.load(f)
@@ -292,13 +299,13 @@ class Block():
         extra_vis_vol = []
         extra_vis_ang = []
         
-        volume = RatingBar(beamer,(-0.5,0),0.1,0.75,0.02,down_butts,up_butts,conf_ud_butts,
+        volume = RatingBar(beamer,(-0.5,0),0.1,0.75,0.01,down_butts,up_butts,conf_ud_butts,
                            richtung=1,midline_length=1.5,midline_pos=-1,overcolor=(0,0,1))
         extra_vis_vol.append(visual.TextStim(win=beamer,text="leise",pos=(-0.5,-0.5),height=0.07,color=(0,0,0),bold=True))
         extra_vis_vol.append(visual.TextStim(win=beamer,text="laut",pos=(-0.5,0.5),height=0.07,color=(0,0,0),bold=True))
         extra_vis_vol.append(visual.TextStim(win=beamer,text="Wie laut empfandest Du den Ton eben?",pos=(-0.5,0.75),height=0.07,color=(0,0,0)))
         
-        angenehm = RatingBar(beamer,(0.5,0),0.75,0.15,0.02,left_butts,right_butts,conf_lr_butts,
+        angenehm = RatingBar(beamer,(0.5,0),0.75,0.15,0.01,left_butts,right_butts,conf_lr_butts,
                            richtung=0,midline_length=1.5,midline_pos=0,overcolor=(0,1,0),undercolor=(1,0,0))
         extra_vis_ang.append(visual.TextStim(win=beamer,text="unangenehm",pos=(0.1,-0.2),height=0.07,color=(0,0,0),bold=True))
         extra_vis_ang.append(visual.TextStim(win=beamer,text="angenehm",pos=(0.8,-0.2),height=0.07,color=(0,0,0),bold=True))
@@ -334,7 +341,7 @@ class Block():
             vschw = np.round(self.visschwank[keys[sound_idx]]*self.beamer_fps*1e-3).astype(int)
             toresp = np.round(self.torespond[keys[sound_idx]]*self.beamer_fps*1e-3).astype(int)
             
-            # send trigger, offset of which indicates start of sound
+            # send trigger and play sound
             self.port.set_val(sound_idx+1)
             snd.play()
             
@@ -374,7 +381,8 @@ class Block():
                             beam_disp["feedback"].visobj.text = "Treffer!"
                             beam_disp["feedback"].color = col_anim(self.back_color,(0,1,0),self.beamer_fps) + \
                               col_anim((0,1,0),self.back_color,self.beamer_fps)
-                    resp_check -= 1
+                    resp_check = 0
+                    event.clearEvents()
                 else:
                     if event.getKeys(["0","1","2","3","4","5","6","7","8","9"]):
                         panel_disp["status"].text = "Subject responded falsely."
@@ -384,6 +392,8 @@ class Block():
                                 beam_disp["feedback"].visobj.text = "Falsch!"
                                 beam_disp["feedback"].color = col_anim(self.back_color,(1,0,0),self.beamer_fps) + \
                                       col_anim((1,0,0),self.back_color,self.beamer_fps)
+                    resp_check = 0
+                    event.clearEvents()  
                 if ans_timer:
                     ans_timer -=1
                                
@@ -394,8 +404,8 @@ class Block():
                     panel_disp["status"].color = (0,0,0)
                     
                 self.draw_visobjs(beam_disp)
-                self.beamer.flip()
-                self.draw_visobjs(panel_disp)           
+                self.draw_visobjs(panel_disp)
+                self.beamer.flip()           
                 self.monitor.flip()
 
             self.port.reset()
@@ -425,10 +435,10 @@ ops = [40,20,10,5,2.5]
 practice_ops = [15,0,0]
 quorum = 2 # must have this many correct/incorrect to reduce/increase volume
 jitter_range = (0.8,2)
-use_parport = 0
+use_parport = 1
 keys = ["2","9"]
-beamer_fps = 60
-monitor_fps = 60
+beamer_fps = 65
+monitor_fps = 65
 play_len = 50
 monitor_idx = 1
 beamer_idx = 0
@@ -446,9 +456,11 @@ else:
     port = -1
 
 ht = HearTest(sound_name_list,hear_keys,ops,quorum,
-             monitor_idx=1, beamer_idx=0,practice=0)
+             monitor_idx=1, beamer_idx=0,beamer_fps=beamer_fps,
+             monitor_fps=monitor_fps,practice=0)
 pt = HearTest(sound_name_list,hear_keys,practice_ops,quorum,
-             monitor_idx=1, beamer_idx=0,practice=1)
+             monitor_idx=1, beamer_idx=0,monitor_fps=monitor_fps,
+             beamer_fps=beamer_fps,practice=1)
 
 htv = HTestVerkehr(ht,pt,over_thresh=40)
 sounddata = [htv.go()] # make it a list so it can be put in other lists without making multiple copies 
@@ -499,7 +511,7 @@ if not all([x in ["i","j"] for x in prac_order]):
     raise ValueError("All practice blocks must be i or j - lowercase.")
 if opt.rest:
     blo = RestingState(monitor_idx,beamer_idx,monitor_fps=monitor_fps,
-                       beamer_fps=beamer_fps)
+                       beamer_fps=beamer_fps,port=port)
     blo.go()
 for p in prac_order:
     blo = Block(**params[p])
