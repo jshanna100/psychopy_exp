@@ -113,6 +113,62 @@ class TriggerSet():
         else:
             port.setData(0)
         
+class RestingState():
+    
+    def __init__(self,monitor_idx,beamer_idx,monitor_fps=0,beamer_fps=0,
+                 start_trig=255,length=180,back_color=(0.5,0.5,0.5),
+                 text_color=(0,0,0)):
+        
+        self.monitor_idx = monitor_idx
+        self.beamer_idx = beamer_idx
+        self.monitor_fps = monitor_fps
+        self.beamer_fps = beamer_fps
+        self.start_trig = start_trig
+        self.length = length
+        self.back_color = back_color
+        self.text_color = text_color
+        
+    def draw_visobjs(self,visobjs):
+        vis_list = list(visobjs.values())
+        for vis in vis_list:
+            vis.draw()
+        
+    def go(self):            
+
+        monitor = visual.Window(size=(700,700),color=self.back_color,
+                                screen=self.monitor_idx,winType="pyglet")
+        
+        self.monitor = monitor
+        monitor.waitBlanking = False
+        beamer = visual.Window(color=self.back_color,screen=self.beamer_idx,
+                                       fullscr=False,size=(1280,1024),winType="pyglet")
+        self.beamer = beamer
+        beamer.waitBlanking = False
+        
+        if not self.monitor_fps:
+            self.monitor_fps = np.round(1/monitor.monitorFramePeriod).astype(int)
+        if not self.beamer_fps:  
+            self.beamer_fps = np.round(1/beamer.monitorFramePeriod).astype(int)
+            
+        panel_disp = {}
+        panel_disp["title"] = visual.TextStim(win=monitor,text="Resting State",
+                  pos=(-0.8,0.8),height=0.07,color=(0,0,0),alignHoriz="left")
+        panel_disp["progress"] = visual.TextStim(win=monitor,text="Remaining: ",
+          pos=(-0.8,0.65),height=0.09,color=(0,0,0),alignHoriz="left")
+        
+        beam_disp = {}
+        beam_disp["fixation"] = VisObj(visual.TextStim(win=beamer,text="X",
+                 height=0.15,color=(0,0,0)))
+        
+        for s_idx in range(self.length):
+            panel_disp["progress"].text = "Remaining: "+ str(self.length-s_idx)
+            for f_idx in range(self.beamer_fps):
+                self.draw_visobjs(panel_disp)
+                self.draw_visobjs(beam_disp)
+                monitor.flip()
+                beamer.flip()
+
+
 class Block():
     
     def draw_visobjs(self,visobjs):
@@ -369,7 +425,7 @@ ops = [40,20,10,5,2.5]
 practice_ops = [15,0,0]
 quorum = 2 # must have this many correct/incorrect to reduce/increase volume
 jitter_range = (0.8,2)
-use_parport = 1
+use_parport = 0
 keys = ["2","9"]
 beamer_fps = 60
 monitor_fps = 60
@@ -429,9 +485,11 @@ params["j"]= {"sounddata":sounddata,"audschwank":"empty","visschwank":"visprac",
                "practice":1,"instruct":instructC}
           
 # handle command line arguments
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(monitor_idx,beamer_idx,monitor_fps,beamer_fps,
+                                 )
 parser.add_argument("--order",type=str,default="abcd")
 parser.add_argument("--prac",type=str,default="")
+parser.add_argument("--rest", action="store_true")
 opt = parser.parse_args()
 block_order = list(opt.order)
 prac_order = list(opt.prac)
@@ -439,6 +497,10 @@ if not all([x in ["a","b","c","d"] for x in block_order]):
     raise ValueError("All blocks must be a,b,c, or d - lowercase.")
 if not all([x in ["i","j"] for x in prac_order]):
     raise ValueError("All practice blocks must be i or j - lowercase.")
+if opt.rest:
+    blo = RestingState(monitor_idx,beamer_idx,monitor_fps=monitor_fps,
+                       beamer_fps=beamer_fps)
+    blo.go()
 for p in prac_order:
     blo = Block(**params[p])
     blo.go()
