@@ -85,7 +85,7 @@ class HearTest():
     def __init__(self,sound_name_list,key_presses,ops,quorum,
       play_duration=2, jitter_range=(0.5,2), practice=0,
       monitor_idx=0,beamer_idx=-1,monitor_fps=None,beamer_fps=None,
-      back_color=(0.5,0.5,0.5),beamsize=(1280,1024),monsize=(700,700)):
+      back_color=(0,0,0),text_color=(-1,-1,-1),beamsize=(1280,1024),monsize=(700,700)):
         
         self.sound_name_list = sound_name_list
         self.key_presses = key_presses
@@ -101,6 +101,7 @@ class HearTest():
         self.back_color = back_color
         self.monsize = monsize
         self.beamsize = beamsize
+        self.text_color = text_color
     
     def draw_visobjs(self,visobjs):
         vis_list = list(visobjs.values())
@@ -127,16 +128,15 @@ class HearTest():
         
         # set up the monitors
         beamer = None
-        monitor = visual.Window(size=self.monsize,color=back_color,
-                                screen=monitor_idx,winType="pyglet")
+        monitor = visual.Window(size=self.monsize,color=self.back_color,screen=monitor_idx,
+                                winType="pyglet",useFPO=False,waitBlanking=False)
         if not monitor_fps:
-            monitor.waitBlanking = False
             monitor_fps = np.round(1/monitor.monitorFramePeriod).astype(int)
             print("Monitor fps: " + str(monitor_fps))
         if beamer_idx > -1:    
-            beamer = visual.Window(size=self.beamsize,color=back_color,screen=beamer_idx, winType="pyglet")
+            beamer = visual.Window(size=self.beamsize,color=back_color,screen=beamer_idx,
+                                   winType="pyglet",useFPO=False,waitBlanking=False)
             if not beamer_fps:
-                beamer.waitBlanking = False
                 beamer_fps = np.round(1/beamer.monitorFramePeriod).astype(int)
                 print("Beamer fps: "+ str(beamer_fps))
         
@@ -145,28 +145,28 @@ class HearTest():
         # set up the complex of visual objects
     
         # text
-        visobjs["tonepress_label"] = visual.TextStim(win=monitor,text="Sound/Press",pos=(-0.9,0.9),height=0.07,color=(0,0,0),alignHoriz="left")
-        visobjs["tonepress_l"] = visual.TextStim(win=monitor,text="L",pos=(-0.8,0.8),height=0.1,color=(0,0,0))
-        visobjs["tonepress_r"] = visual.TextStim(win=monitor,text="R",pos=(-0.7,0.8),height=0.1,color=(0,0,0))
-        visobjs["tonelabel"] = visual.TextStim(win=monitor,text="S",pos=(-0.9,0.7),height=0.1,color=(0,0,0))
-        visobjs["presslabel"] = visual.TextStim(win=monitor,text="P",pos=(-0.9,0.6),height=0.1,color=(0,0,0))
-        visobjs["acclabel"] = visual.TextStim(win=monitor,text="Accuracy",pos=(-0.9,0.4),height=0.07,color=(0,0,0),alignHoriz="left")
-        visobjs["acclabel_l"] = visual.TextStim(win=monitor,text="L",pos=(-0.9,0.3),height=0.1,color=(0,0,0))
-        visobjs["acclabel_r"] = visual.TextStim(win=monitor,text="R",pos=(-0.9,0.15),height=0.1,color=(0,0,0))
-        visobjs["filename"] = visual.TextStim(win=monitor,text="",pos=(-0.95,-0.1),height=0.06,color=(0,0,0),alignHoriz="left")
-        visobjs["progress"] = visual.TextStim(win=monitor,text="",pos=(-0.95,-0.2),height=0.06,color=(0,0,0),alignHoriz="left")
-        visobjs["mode"] = visual.TextStim(win=monitor,text="Normal Mode",pos=(-0.95,-0.5),height=0.08,color=(0,0,0),alignHoriz="left")
-        visobjs["status"] = visual.TextStim(win=monitor,text="Running",pos=(0.05,-0.5),height=0.08,color=(0,0,0),alignHoriz="left")
-        visobjs["message"] = visual.TextStim(win=monitor,text="press p to pause, a to abort",pos=(-0.95,-0.8),height=0.06,color=(0,0,0),alignHoriz="left")
+        visobjs["tonepress_label"] = visual.TextStim(win=monitor,text="Sound/Press",pos=(-0.9,0.9),height=0.07,color=self.text_color,alignHoriz="left")
+        visobjs["tonepress_l"] = visual.TextStim(win=monitor,text="L",pos=(-0.8,0.8),height=0.1,color=self.text_color)
+        visobjs["tonepress_r"] = visual.TextStim(win=monitor,text="R",pos=(-0.7,0.8),height=0.1,color=self.text_color)
+        visobjs["tonelabel"] = visual.TextStim(win=monitor,text="S",pos=(-0.9,0.7),height=0.1,color=self.text_color)
+        visobjs["presslabel"] = visual.TextStim(win=monitor,text="P",pos=(-0.9,0.6),height=0.1,color=self.text_color)
+        visobjs["acclabel"] = visual.TextStim(win=monitor,text="Accuracy",pos=(-0.9,0.4),height=0.07,color=self.text_color,alignHoriz="left")
+        visobjs["acclabel_l"] = visual.TextStim(win=monitor,text="L",pos=(-0.9,0.3),height=0.1,color=self.text_color)
+        visobjs["acclabel_r"] = visual.TextStim(win=monitor,text="R",pos=(-0.9,0.15),height=0.1,color=self.text_color)
+        visobjs["filename"] = visual.TextStim(win=monitor,text="",pos=(-0.95,-0.1),height=0.06,color=self.text_color,alignHoriz="left")
+        visobjs["progress"] = visual.TextStim(win=monitor,text="",pos=(-0.95,-0.2),height=0.06,color=self.text_color,alignHoriz="left")
+        visobjs["mode"] = visual.TextStim(win=monitor,text="Normal Mode",pos=(-0.95,-0.5),height=0.08,color=self.text_color,alignHoriz="left")
+        visobjs["status"] = visual.TextStim(win=monitor,text="Running",pos=(0.05,-0.5),height=0.08,color=self.text_color,alignHoriz="left")
+        visobjs["message"] = visual.TextStim(win=monitor,text="press p to pause, a to abort",pos=(-0.95,-0.8),height=0.06,color=self.text_color,alignHoriz="left")
     
         if practice:
             visobjs["mode"].text = "Practice"
-            visobjs["mode"].color = (1,0,0)
+            visobjs["mode"].color = (1,-1,-1)
         
         if beamer is not None:
             beamobjs["befehl"] = visual.TextStim(win=beamer,
                    text="Drücke sofort RECHTS bei einem Ton im rechten Ohr.\n\n\nDrücke sofort LINKS bei einem Ton im linken Ohr.",
-                   pos=(0,0),height=0.07,color=(0,0,0))
+                   pos=(0,0),height=0.07,color=self.text_color)
             beamobjs["bericht"] = VisObj(visual.TextStim(win=beamer,text="",pos=(0,0),
                     height=0.1,color=back_color))
             self.draw_visobjs(beamobjs)
@@ -174,13 +174,13 @@ class HearTest():
         
         # tone/press squares
         visobjs["lefttone"] = VisObj(visual.Rect(
-          win=monitor,units="norm",width=0.1,height=0.1,pos=(-0.8,0.7),lineColor=[0,0,0]))
+          win=monitor,units="norm",width=0.1,height=0.1,pos=(-0.8,0.7),lineColor=[-1,-1,-1]))
         visobjs["righttone"] = VisObj(visual.Rect(
-          win=monitor,units="norm",width=0.1,height=0.1,pos=(-0.7,0.7),lineColor=[0,0,0]))
+          win=monitor,units="norm",width=0.1,height=0.1,pos=(-0.7,0.7),lineColor=[-1,-1,-1]))
         visobjs["leftpress"] = VisObj(visual.Rect(
-          win=monitor,units="norm",width=0.1,height=0.1,pos=(-0.8,0.6),lineColor=[0,0,0]))
+          win=monitor,units="norm",width=0.1,height=0.1,pos=(-0.8,0.6),lineColor=[-1,-1,-1]))
         visobjs["rightpress"] = VisObj(visual.Rect(
-          win=monitor,units="norm",width=0.1,height=0.1,pos=(-0.7,0.6),lineColor=[0,0,0]))
+          win=monitor,units="norm",width=0.1,height=0.1,pos=(-0.7,0.6),lineColor=[-1,-1,-1]))
     
         # accuracy squares
         acc_pane_names = [[],[]]
@@ -189,7 +189,7 @@ class HearTest():
                 acc_pane_names[s_idx].append(s[0]+"acc"+str(p_idx))
                 visobjs[acc_pane_names[s_idx][-1]]=VisObj(visual.Rect(
                   win=monitor,units="norm",width=0.1,height=0.1,pos=(-0.8+(p_idx*0.1),s[1]),
-                  lineColor=(0,0,0),fillColor=back_color))
+                  lineColor=(-1,-1,-1),fillColor=back_color))
     
         # threshold chart
         thresh_height_cent = 0.25
@@ -199,20 +199,20 @@ class HearTest():
         thresh_height_min = thresh_height_cent-thresh_height/2
         visobjs["thresh_back"] = VisObj(visual.Rect(
           win=monitor,units="norm",width=thresh_width,height=thresh_height,pos=(thresh_width_cent,thresh_height_cent),
-          lineColor=[0,0,0],fillColor=(1,1,1)))
+          lineColor=[-1,-1,-1],fillColor=(1,1,1)))
         visobjs["thresh_left"] = VisObj(visual.Rect(
           win=monitor,units="norm",width=thresh_width/4,height=0.08,pos=(thresh_width_cent-thresh_width/4,thresh_height_cent),
-          lineColor=[0,0,0],fillColor=(0,0,1)))
+          lineColor=[-1,-1,-1],fillColor=(-1,-1,1)))
         visobjs["thresh_right"] = VisObj(visual.Rect(
           win=monitor,units="norm",width=thresh_width/4,height=0.08,pos=(thresh_width_cent+thresh_width/4,thresh_height_cent),
-          lineColor=[0,0,0],fillColor=(0,0,1)))
+          lineColor=[-1,-1,-1],fillColor=(-1,-1,1)))
     
-        visobjs["thresh_label"] = visual.TextStim(win=monitor,text="Hearing Threshold",pos=(0.3,0.9),height=0.07,color=(0,0,0))
-        visobjs["thresh_label_l"] = visual.TextStim(win=monitor,text="L",pos=(thresh_width_cent-thresh_width/4,0.8),height=0.1,color=(0,0,0))
-        visobjs["thresh_label_r"] = visual.TextStim(win=monitor,text="R",pos=(thresh_width_cent+thresh_width/4,0.8),height=0.1,color=(0,0,0))
-        visobjs["thresh_label_dB"] = visual.TextStim(win=monitor,text="dB",pos=(thresh_width_cent-thresh_width/2-0.13,thresh_height_cent),height=0.1,color=(0,0,0))
-        visobjs["thresh_label_max"] = visual.TextStim(win=monitor,text="0",pos=(thresh_width_cent-thresh_width/2-0.13,thresh_height_cent+thresh_height/2),height=0.1,color=(0,0,0))
-        visobjs["thresh_label_min"] = visual.TextStim(win=monitor,text="-160",pos=(thresh_width_cent-thresh_width/2-0.13,thresh_height_cent-thresh_height/2),height=0.1,color=(0,0,0))
+        visobjs["thresh_label"] = visual.TextStim(win=monitor,text="Hearing Threshold",pos=(0.3,0.9),height=0.07,color=self.text_color)
+        visobjs["thresh_label_l"] = visual.TextStim(win=monitor,text="L",pos=(thresh_width_cent-thresh_width/4,0.8),height=0.1,color=self.text_color)
+        visobjs["thresh_label_r"] = visual.TextStim(win=monitor,text="R",pos=(thresh_width_cent+thresh_width/4,0.8),height=0.1,color=self.text_color)
+        visobjs["thresh_label_dB"] = visual.TextStim(win=monitor,text="dB",pos=(thresh_width_cent-thresh_width/2-0.13,thresh_height_cent),height=0.1,color=self.text_color)
+        visobjs["thresh_label_max"] = visual.TextStim(win=monitor,text="0",pos=(thresh_width_cent-thresh_width/2-0.13,thresh_height_cent+thresh_height/2),height=0.1,color=self.text_color)
+        visobjs["thresh_label_min"] = visual.TextStim(win=monitor,text="-160",pos=(thresh_width_cent-thresh_width/2-0.13,thresh_height_cent-thresh_height/2),height=0.1,color=self.text_color)
         
         # for every file name,convert to stereo, 
         # and normalise to [-1,1] range, build the SoundWrap objects
@@ -253,9 +253,9 @@ class HearTest():
                     # play sound and update tone squares
                     sounds[r].play()
                     if r:
-                        visobjs["righttone"].visobj.fillColor=(0,1,0)
+                        visobjs["righttone"].visobj.fillColor=(-1,1,-1)
                     else:
-                        visobjs["lefttone"].visobj.fillColor=(0,1,0)
+                        visobjs["lefttone"].visobj.fillColor=(-1,1,-1)
                     
                     for f_idx in range(int(monitor_fps*play_duration)):
                         response = event.getKeys(key_presses)
@@ -277,7 +277,7 @@ class HearTest():
                                 break
                         response = response + grace_response            
                     
-                    anim_pattern = col_anim((0,1,0),(0,1,0),int(monitor_fps*0.15)) + col_anim((0,1,0),back_color,int(monitor_fps*0.2))
+                    anim_pattern = col_anim((-1,1,-1),(-1,1,-1),int(monitor_fps*0.15)) + col_anim((0,1,0),back_color,int(monitor_fps*0.2))
                     if r:
                         visobjs["righttone"].fillColor= anim_pattern
                     else:
@@ -286,41 +286,41 @@ class HearTest():
                     # mark accuracy, update press squares
                     if key_presses[r] in response and key_presses[1-r] not in response:
                         accs[r].append(1)
-                        anim_pattern = col_anim(back_color,(0,1,0),int(monitor_fps*0.15)) + \
-                          col_anim((0,1,0),back_color,int(monitor_fps*0.2))
+                        anim_pattern = col_anim(back_color,(-1,1,-1),int(monitor_fps*0.15)) + \
+                          col_anim((-1,1,-1),back_color,int(monitor_fps*0.2))
                         if r:
                             visobjs["rightpress"].fillColor=anim_pattern
                         else:
                             visobjs["leftpress"].fillColor=anim_pattern
                         if practice and beamer_idx>-1:
                             beamobjs["bericht"].visobj.text="Richtig!"
-                            beamobjs["bericht"].color = col_anim(back_color,(0,1,0),beamer_fps*0.35) + \
-                              col_anim((0,1,0),back_color,beamer_fps*0.35)
+                            beamobjs["bericht"].color = col_anim(back_color,(-1,1,-1),beamer_fps*0.35) + \
+                              col_anim((-1,1,-1),back_color,beamer_fps*0.35)
                             
                     elif key_presses[1-r] in response:
                         accs[r].append(0)
-                        anim_pattern = col_anim(back_color,(1,0,0),int(monitor_fps*0.15)) + \
-                          col_anim((1,0,0),back_color,int(monitor_fps*0.3))
+                        anim_pattern = col_anim(back_color,(1,-1,-1),int(monitor_fps*0.15)) + \
+                          col_anim((1,-1,-1),back_color,int(monitor_fps*0.3))
                         if r:
                             visobjs["leftpress"].fillColor=anim_pattern.copy()
                         else:
                             visobjs["rightpress"].fillColor=anim_pattern.copy()
                         if practice and beamer_idx>-1:
                             beamobjs["bericht"].visobj.text="Falsch!"
-                            beamobjs["bericht"].color = col_anim(back_color,(1,0,0),beamer_fps*0.35) + \
-                              col_anim((1,0,0),back_color,beamer_fps*0.35)
+                            beamobjs["bericht"].color = col_anim(back_color,(1,-1,-1),beamer_fps*0.35) + \
+                              col_anim((1,-1,-1),back_color,beamer_fps*0.35)
                     else:
                         accs[r].append(0)
                         if practice and beamer_idx>-1:
                             beamobjs["bericht"].visobj.text="Verpasst!"
-                            beamobjs["bericht"].color = col_anim(back_color,(1,0,0),beamer_fps*0.35) + \
-                              col_anim((1,0,0),back_color,beamer_fps*0.35)
+                            beamobjs["bericht"].color = col_anim(back_color,(1,-1,-1),beamer_fps*0.35) + \
+                              col_anim((1,-1,-1),back_color,beamer_fps*0.35)
                     
                     # update acc squares
                     if accs[r][-1]:
-                        anim_pattern = col_anim(back_color,(0,1,0),monitor_fps*0.2)
+                        anim_pattern = col_anim(back_color,(-1,1,-1),monitor_fps*0.2)
                     else:
-                        anim_pattern = col_anim(back_color,(1,0,0),monitor_fps*0.2)
+                        anim_pattern = col_anim(back_color,(1,-1,-1),monitor_fps*0.2)
                     visobjs[acc_pane_names[r][len(accs[r])-1]].fillColor=anim_pattern.copy()
                                         
                     # ISI
@@ -333,13 +333,13 @@ class HearTest():
                         monitor.flip()
                     if "p" in event.getKeys(["p"]):
                         visobjs["status"].text = "Paused"
-                        visobjs["status"].color = (1,0,0)
+                        visobjs["status"].color = (1,-1,-1)
                         visobjs["message"].text = "press p again to resume"
                         self.draw_visobjs(visobjs)
                         monitor.flip()
                         event.waitKeys(keyList=["p"])
                         visobjs["status"].text = "Running"
-                        visobjs["status"].color = (0,0,0)
+                        visobjs["status"].color = self.text_color
                         visobjs["message"].text = "press p to pause, a to abort"
                         self.draw_visobjs(visobjs)
                         monitor.flip
@@ -347,7 +347,7 @@ class HearTest():
                         abort += 1
                         if abort == 1:
                             visobjs["message"].text = "press a again to abort, n to cancel"
-                            visobjs["message"].color = (1,0,0)
+                            visobjs["message"].color = (1,-1,-1)
                         if abort == 2:
                             monitor.close()
                             if beamer_idx > -1:
@@ -356,25 +356,25 @@ class HearTest():
                     if abort == 1 and "n" in event.getKeys(["n"]):
                         abort = 0
                         visobjs["message"].text = "press p to pause, a to abort"
-                        visobjs["message"].color = (0,0,0)
+                        visobjs["message"].color = self.text_color
                     event.clearEvents()
                 
                 # assess accuracy and act accordingly
                 accs = np.array(accs)
                 for r_idx in range(accs.shape[0]):
-                    line_flash = col_anim((0,0,0),(1,1,1),monitor_fps*0.2) + col_anim((1,1,1),(0,0,0),monitor_fps*0.4)
-                    green_flash = col_anim((0,1,0),(1,1,1),monitor_fps*0.2) + col_anim((1,1,1),back_color,monitor_fps*0.4)
-                    red_flash = col_anim((1,0,0),(1,1,1),monitor_fps*0.2) + col_anim((1,1,1),back_color,monitor_fps*0.4)
+                    line_flash = col_anim((-1,-1,-1),(1,1,1),monitor_fps*0.2) + col_anim((1,1,1),(-1,-1,-1),monitor_fps*0.4)
+                    green_flash = col_anim((-1,1,-1),(1,1,1),monitor_fps*0.2) + col_anim((1,1,1),back_color,monitor_fps*0.4)
+                    red_flash = col_anim((1,-1,-1),(1,1,1),monitor_fps*0.2) + col_anim((1,1,1),back_color,monitor_fps*0.4)
                     if accs[r_idx,].all() and swr.ops[r_idx]: # all correct, decrease volume, flash squares
                         swr.operate(r_idx,dcb_delta=swr.ops[r_idx].pop(0),direction=-1)
                         for accp in acc_pane_names[r_idx]:
-                            visobjs[accp].fillColor = green_flash
-                            visobjs[accp].lineColor = line_flash
+                            visobjs[accp].fillColor = green_flash.copy()
+                            visobjs[accp].lineColor = line_flash.copy()
                     elif not accs[r_idx,].any() and swr.ops[r_idx]: # all false, increase
                         swr.operate(r_idx,dcb_delta=swr.ops[r_idx].pop(0),direction=1)
                         for accp in acc_pane_names[r_idx]:
-                            visobjs[accp].fillColor = red_flash
-                            visobjs[accp].lineColor = line_flash
+                            visobjs[accp].fillColor = red_flash.copy()
+                            visobjs[accp].lineColor = line_flash.copy()
                     else: # ambiguous result, just clear acc squares
                         for accp in acc_pane_names[r_idx]:
                             visobjs[accp].fillColor = col_anim(

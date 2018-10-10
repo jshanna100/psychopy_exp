@@ -66,11 +66,11 @@ class RatingBar():
         r2a = Rel2Abs(pos,width,height,midline_pos,richtung)
         visobjs={}
         visobjs["frame"]=VisObj(visual.Rect(win,units="norm",pos=pos,
-               width=width,height=height,lineColor=(0,0,0)))
+               width=width,height=height,lineColor=(-1,-1,-1)))
         visobjs["valrect"]=VisObj(visual.Rect(win,units="norm",pos=(0,0),
-               width=0,height=0,lineColor=(0,0,0),fillColor=(0.5,0.5,0.5)))
+               width=0,height=0,lineColor=(-1,-1,-1),fillColor=(0,0,0)))
         visobjs["midline"]=VisObj(visual.Line(win,r2a((midline_pos,midline_length)),
-          r2a((midline_pos,-midline_length)),lineColor=(0,0,0)))
+          r2a((midline_pos,-midline_length)),lineColor=(-1,-1,-1)))
         
         self.visobjs = {**visobjs, **visobjs_extras}
         self.r2a = r2a
@@ -110,13 +110,13 @@ class RatingBar():
     def confirm(self):
         vo = self.visobjs["valrect"]
         flash = col_anim(vo.visobj.fillColor,(0.9,0.9,0.9),10)
-        fossil = col_anim((0.9,0.9,0.9),(0.3,0.3,0.3),10)
+        fossil = col_anim((0.9,0.9,0.9),(-.5,-.5,-.5),10)
         vo.fillColor = flash + fossil
         return self.rval
     def unconfirm(self):
         restore_color = self.undercolor if self.rval < 0 else self.overcolor
         vo = self.visobjs["valrect"]
-        flash = col_anim((0.3,0.3,0.3),(0.9,0.9,0.9),10)
+        flash = col_anim((-.5,-.5,-.5),(0.9,0.9,0.9),10)
         entfossil = col_anim((0.9,0.9,0.9),restore_color,10)
         vo.fillColor = flash + entfossil
         return np.nan
