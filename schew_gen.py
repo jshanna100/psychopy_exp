@@ -24,12 +24,13 @@ def reihe_gen(time,n_schw_rang,min_dist,other_set=0):
             onsets = [0]
     return onsets
 
-sound_name_list = ["4000Hz.wav","4000_cheby.wav","4000_fftf.wav","7500Hz.wav"]
+sound_name_list = ["4000Hz.wav","4000_cheby.wav","4000_fftf.wav","6000Hz.wav",
+                   "6500Hz.wav","7000Hz.wav","7500Hz.wav"]
 
 schwank = {}
 for s in sound_name_list:
     schwank[s] = np.array(reihe_gen(100000,(18,19),1500,other_set=0))
     #schwank[s] = np.empty(0)
     
-with open("audadd","wb") as f:
+with open("visprac","wb") as f:
     pickle.dump(schwank,f)

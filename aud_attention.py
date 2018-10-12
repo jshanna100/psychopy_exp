@@ -10,6 +10,8 @@ import time
 import datetime
 from tkinter import filedialog
 import argparse
+from reftime import refresh_timer
+import sys
 
 def tile_audio(snd,length):
     tile_remain, tile_iters = np.modf(length/(len(snd)//44100))
@@ -43,20 +45,6 @@ def add_tone(snd,audschwank,length,add_snds):
                 snd[samp_idx,:] += add_snds[rand_idx[schw_idx]][samp_count,:] * \
                   (np.sin((np.pi*samp_count)/(idx_length)))
     return snd
-
-def aud_schwank(snd,schw_length,schw_step,port,aud_trig):
-    t = time.clock()
-    t_end = t + schw_length
-    t_next = t + schw_step
-    if port:
-        port.setData(aud_trig)
-    while t<t_end:
-        t = time.clock()
-        if t > t_next:
-            snd.setVolume((1-np.sin(np.pi*((t_end-t)/schw_length)))*0.5+0.5)
-            t_next = t + schw_step
-    if port:
-        port.setData(0)
 
 def col_anim(beg,end,steps):
     # make color animations, put in start and finish RGB values and how many frames
@@ -121,8 +109,6 @@ class RestingState():
         
         self.monitor_idx = monitor_idx
         self.beamer_idx = beamer_idx
-        self.monitor_fps = monitor_fps
-        self.beamer_fps = beamer_fps
         self.start_trig = start_trig
         self.length = length
         self.back_color = back_color
@@ -144,13 +130,6 @@ class RestingState():
                                        winType="pyglet",useFBO=False,
                                        waitBlanking=False)
         
-        if not self.monitor_fps:
-            self.monitor_fps = np.round(1/monitor.monitorFramePeriod).astype(int)
-        if not self.beamer_fps:  
-            self.beamer_fps = np.round(1/beamer.monitorFramePeriod).astype(int)
-            
-        print("Monitor fps: " + str(monitor_fps))
-        print("Beamer fps: " + str(beamer_fps))
 
         panel_disp = {}
         panel_disp["title"] = visual.TextStim(win=monitor,text="Resting State",
@@ -163,21 +142,23 @@ class RestingState():
         
         self.port.set_val(self.start_trig)
             
-        for s_idx in range(self.length):
-            panel_disp["progress"].text = "Remaining: "+ str(self.length-s_idx)
-            for f_idx in range(self.beamer_fps):     
+        beg_time = time.perf_counter()
+        sec_counter = 0
+        now = time.perf_counter()
+        while now < beg_time+self.length:
+            if np.round(now)>sec_counter:
+                sec_counter = np.round(now-beg_time).astype(int)
+                panel_disp["progress"].text = "Remaining: "+ str(
+                        self.length-sec_counter)    
                 self.draw_visobjs(beam_disp)
                 self.draw_visobjs(panel_disp)   
                 beamer.flip()
                 monitor.flip()
+            now = time.perf_counter()
         core.wait(0.5)
         self.port.reset()
-        print("turning off monitor")
         monitor.close()
-        print("done")
-        print("turning off beamer")
         beamer.close()
-        print("done")
 
 class Block():
     
@@ -192,11 +173,12 @@ class Block():
         core.quit()
     
     def __init__(self,sounddata,audschwank,visschwank,torespond,keys,play_len,
-                 monitor_idx,beamer_idx,name="Experiment",monitor_fps=0,beamer_fps=0,
+                 monitor_idx,beamer_idx,name="Experiment",monitor_fps=60,beamer_fps=60,
                  instruct="Instructions",aud_schw_len=0.5,vis_schw_len=0.5,
                  aud_trig=100,vis_trig=200,port=-1,schw_or_add="schwank",id_trig=1,
                  practice=0,stim_start_trig=50,resp_len=1.5,back_color=(0,0,0),
-                 text_color=(-1,-1,-1)):
+                 text_color=(-1,-1,-1),time_events=1,right_trig=225,wrong_trig=250,
+                 combined_fps=60):
         with open(audschwank,"rb") as f:
             self.audschwank = pickle.load(f)
         with open(visschwank,"rb") as f:
@@ -224,6 +206,10 @@ class Block():
         self.resp_len = resp_len
         self.back_color = back_color
         self.text_color = text_color
+        self.time_events = time_events
+        self.right_trig=right_trig
+        self.wrong_trig=wrong_trig
+        self.combined_fps = combined_fps
         print("Building stimuli...")
         kurz_sounds = {}
         for s in list(self.sounddata.keys()):
@@ -248,27 +234,22 @@ class Block():
     def go(self):
         ratings = []
         # set up the monitors
-        monitor = visual.Window(size=(700,700),color=self.back_color,
+        monitor = visual.Window(size=(800,600),color=self.back_color,
                                 screen=self.monitor_idx,winType="pyglet",
                                 useFBO=False,waitBlanking=False)       
         beamer = visual.Window(color=self.back_color,screen=self.beamer_idx,
                                        fullscr=False,size=(1280,1024),winType="pyglet",
                                        useFBO=False,waitBlanking=False)
-
-            
-        if not self.monitor_fps:
-            self.monitor_fps = np.round(1/monitor.monitorFramePeriod).astype(int)
-        if not self.beamer_fps:  
-            self.beamer_fps = np.round(1/beamer.monitorFramePeriod).astype(int)
         
         print("Monitor fps: " + str(self.monitor_fps))
         print("Beamer fps: " + str(self.beamer_fps))
+        print("Combined fps: " + str(self.combined_fps))
              
         # build the display objects
         
         instruct_disp = {}
         instruct_disp["instruct"] = visual.TextStim(win=beamer,text=self.instruct,
-                     color=self.text_color,pos=(0,0),height=0.1,wrapWidth=1.3)
+                     color=self.text_color,pos=(0,0),height=0.07,wrapWidth=1.5)
   
         panel_disp = {}
         panel_disp["title"] = visual.TextStim(win=monitor,text=self.name,
@@ -294,12 +275,12 @@ class Block():
                  color=self.text_color, pos=(0,0.3),height=0.15))
         
         # set up rating bars
-        down_butts = [key._2]
-        up_butts = [key._3]
-        conf_ud_butts = [key._5]
-        left_butts = [key._8]
-        right_butts = [key._9]
-        conf_lr_butts = [key._6]
+        down_butts = [key._8]
+        up_butts = [key._9]
+        conf_ud_butts = [key._6]
+        left_butts = [key._2]
+        right_butts = [key._3]
+        conf_lr_butts = [key._5]
         
         extra_vis_vol = []
         extra_vis_ang = []
@@ -311,24 +292,26 @@ class Block():
         extra_vis_vol.append(visual.TextStim(win=beamer,text="Wie laut empfandest Du den Ton eben?",pos=(-0.5,0.75),height=0.07,color=self.text_color))
         
         angenehm = RatingBar(beamer,(0.5,0),0.75,0.15,0.01,left_butts,right_butts,conf_lr_butts,
-                           richtung=0,midline_length=1.5,midline_pos=0,overcolor=(-1,1,-1),undercolor=(1,-1,-1))
+                           richtung=0,midline_length=1.5,midline_pos=0,overcolor=(-1,0.5,-0.8),undercolor=(1,-1,-1))
         extra_vis_ang.append(visual.TextStim(win=beamer,text="unangenehm",pos=(0.1,-0.2),height=0.07,color=self.text_color,bold=True))
         extra_vis_ang.append(visual.TextStim(win=beamer,text="angenehm",pos=(0.8,-0.2),height=0.07,color=self.text_color,bold=True))
         extra_vis_ang.append(visual.TextStim(win=beamer,text="Wie un/angenehm empfandest Du den Ton eben?",pos=(0.5,0.75),height=0.07,color=self.text_color))
         
-        rbv = RBarVerkehr([volume,angenehm],beamer,extra_vis=extra_vis_vol+extra_vis_ang,fps=85)
+        rbv = RBarVerkehr([volume,angenehm],beamer,extra_vis=extra_vis_vol+extra_vis_ang,fps=self.beamer_fps)
         
         # preprocess color animations
         col_anims = {}
-        col_anims["visschw"] = col_anim((-1,-1,-1),(0,0,0),self.beamer_fps//4) + \
-                      col_anim((0,0,0),(-1,-1,-1),self.beamer_fps//4)
-        col_anims["correct"] = col_anim((-1,1,-1),self.back_color,self.beamer_fps)
-        col_anims["incorrect"] = col_anim((1,-1,-1),self.back_color,self.beamer_fps)
+        col_anims["visschw"] = col_anim((-1,-1,-1),(0,0,0),
+                 np.round(self.combined_fps*self.vis_schw_len/2).astype(int)) + \
+                 col_anim((0,0,0),(-1,-1,-1),
+                 np.round(self.combined_fps*self.vis_schw_len/2).astype(int))
+        col_anims["correct"] = col_anim((-1,1,-1),self.back_color,self.combined_fps)
+        col_anims["incorrect"] = col_anim((1,-1,-1),self.back_color,self.combined_fps)
         if self.practice:
-            col_anims["treffer"] = col_anim(self.back_color,(-1,1,-1),self.beamer_fps//2) + \
-                              col_anim((-1,1,-1),self.back_color,self.beamer_fps)
-            col_anims["falsch"] = col_anim(self.back_color,(1,-1,-1),self.beamer_fps//2) + \
-                                      col_anim((1,-1,-1),self.back_color,self.beamer_fps)                
+            col_anims["treffer"] = col_anim(self.back_color,(-1,1,-1),self.combined_fps//2) + \
+                              col_anim((-1,1,-1),self.back_color,self.combined_fps)
+            col_anims["falsch"] = col_anim(self.back_color,(1,-1,-1),self.combined_fps//2) + \
+                                      col_anim((1,-1,-1),self.back_color,self.combined_fps)                
         
         # instructions
         event.clearEvents()
@@ -353,75 +336,73 @@ class Block():
             panel_disp["status"].text = "Subject is receiving stimuli..."
             # load sound, create sound Schwankung
             snd = self.sounds[keys[sound_idx]]
-            # load Schwankungen
-            aschw = np.round(self.audschwank[keys[sound_idx]]*self.beamer_fps*1e-3).astype(int)
-            vschw = np.round(self.visschwank[keys[sound_idx]]*self.beamer_fps*1e-3).astype(int)
-            toresp = np.round(self.torespond[keys[sound_idx]]*self.beamer_fps*1e-3).astype(int)
-            
+
+            aschw = list(self.audschwank[keys[sound_idx]])
+            vschw = list(self.visschwank[keys[sound_idx]])
+            toresp = list(self.torespond[keys[sound_idx]] )         
             # send trigger and play sound
             self.port.set_val(sound_idx+1)
             snd.play()
             
             # run modulations
-            vis_check = 0
-            aud_check = 0
             resp_check = 0
             event.clearEvents()
+            a_next = aschw.pop(0) if aschw else np.inf
+            v_next = vschw.pop(0) if vschw else np.inf
+            t_next = toresp.pop(0) if toresp else np.inf
+            aud_schw_time = 0
+            vis_schw_time = 0
             beg_time = time.perf_counter()
-            for f in range(self.play_len*self.beamer_fps):
-                if f in aschw:
-                    aud_check = int(self.beamer_fps*self.aud_schw_len)
+            while (time.perf_counter()-beg_time) < self.play_len:
+                now = (time.perf_counter()-beg_time)*1000
+                if now >= a_next:
+                    a_next = aschw.pop(0) if aschw else np.inf
+                    aud_schw_time = now+self.aud_schw_len*1000
                     panel_disp["status"].text = "AUDITORY MODULATION"
                     panel_disp["status"].color = (1,-1,-1)
-                    beamer.callOnFlip(self.port.set_val,self.aud_trig)
-                if f in vschw:
+                    self.port.set_val(self.aud_trig)
+                if now >= v_next:
+                    v_next = vschw.pop(0) if vschw else np.inf
+                    vis_schw_time = now+self.vis_schw_len*1000
                     beam_disp["fixation"].color = col_anims["visschw"].copy()
-                    vis_check = int(self.beamer_fps*self.vis_schw_len)
                     beamer.callOnFlip(self.port.set_val,self.vis_trig)
                     panel_disp["status"].text = "VISUAL MODULATION"
                     panel_disp["status"].color = (1,-1,-1)
-                if f in toresp :
-                    resp_check = int(self.beamer_fps*self.resp_len)
-                    event.clearEvents()
-                        
-                if resp_check:
-                    if event.getKeys(["0","1","2","3","4","5","6","7","8","9"]):
+                if now >= t_next:
+                    t_next = toresp.pop(0) if toresp else np.inf
+                    resp_check = now + self.resp_len*1000
+                    event.clearEvents()                        
+                if event.getKeys(["0","1","2","3","4","5","6","7","8","9"]):
+                    if now < resp_check:
                         panel_disp["feedback"].visobj.text = "Subject responded correctly."
                         panel_disp["feedback"].color = col_anims["correct"].copy()
+                        self.port.set_val(self.right_trig)
                         if self.practice:
                             beam_disp["feedback"].visobj.text = "Treffer!"
                             beam_disp["feedback"].color = col_anims["treffer"].copy()
                         event.clearEvents()
-                else:
-                    if event.getKeys(["0","1","2","3","4","5","6","7","8","9"]):
-                        panel_disp["feedback"].visobj.text = "Subject responded falsely."
+                    else:
+                        panel_disp["feedback"].visobj.text = "Subject responded incorrectly."
                         panel_disp["feedback"].color = col_anims["incorrect"].copy()
+                        self.port.set_val(self.wrong_trig)
                         if self.practice:
                             beam_disp["feedback"].visobj.text = "Falsch!"
                             beam_disp["feedback"].color = col_anims["falsch"].copy()                        
                         event.clearEvents()  
-                               
-                if not vis_check and not aud_check and not resp_check:
+                if now > aud_schw_time and now > vis_schw_time:
                     if self.port:
-                        self.port.reset()
+                        self.port.set_val(sound_idx+1)
                     panel_disp["status"].text = "Subject is receiving stimuli..."
                     panel_disp["status"].color = self.text_color
                     
                 self.draw_visobjs(beam_disp)
                 self.draw_visobjs(panel_disp)
                 beamer.flip()           
-                monitor.flip()
+                monitor.flip()               
                 
-                if vis_check:
-                    vis_check -= 1
-                if aud_check:
-                    aud_check -= 1
-                if resp_check:
-                    resp_check -= 1
-
-            end_time = time.perf_counter()
-            print("Measured condition time: "+str(end_time - beg_time))
             self.port.reset()
+            if self.time_events:
+                print("Stimulus duration: "+str(time.perf_counter()-beg_time))
             beam_disp["feedback"].visobj.text = ""
             panel_disp["feedback"].visobj.text = ""
             snd.stop()
@@ -442,29 +423,39 @@ class Block():
         monitor.close()
         beamer.close()
         return ratings                
-            
+
+
 
 # define and run hearing test
-sound_name_list = ["4000Hz.wav","4000_cheby.wav","4000_fftf.wav","7500Hz.wav"]
+sound_name_list = ["4000Hz.wav","4000_cheby.wav","4000_fftf.wav","7000Hz.wav"]
+#sound_name_list = ["6000Hz.wav","6500Hz.wav","7000Hz.wav","7500Hz.wav"]
 hear_keys = ["9","2"] # these correspond to hitting "left" and "right"
 ops = [40,20,10,5,2.5]
 practice_ops = [15,0,0]
 quorum = 2 # must have this many correct/incorrect to reduce/increase volume
 jitter_range = (0.8,2)
-use_parport = 0
+use_parport = 1
 keys = ["2","9"]
-beamer_fps = 30
-monitor_fps = 30
+
 play_len = 100
-monitor_idx = 1
-beamer_idx = 0
+monitor_idx = 0
+beamer_idx = 1
 aud_schw_len = 0.5
+screen_defs = {"monitor":(monitor_idx,(800,600)),"beamer":(beamer_idx,(1280,1024))}
 
+# detemine joint fps
+fps = refresh_timer(screen_defs,15,cycles=5)
+print(fps)
+monitor_fps,beamer_fps,combined_fps=fps[0],fps[1],fps[2]
 
-instructA = "Aufmerksamkeit: achte genau auf die Töne (die Augen bleiben auf dem Kreuz).\n\nAufgabe: bemerke Schwankungen in der Lautstärke und drücke die Zeigefinger-Taste.\n\ndrücke eine beliebige Taste um fortzufahren."
-instructB = "Aufmerksamkeit: achte genau auf das Kreuz, NICHT auf die Töne.\n\nAufgabe: bemerke Schwankungen in der Helligkeit und drücke die Zeigefinger-Taste.\n\ndrücke eine beliebige Taste um fortzufahren."
-instructC = "Aufmerksamkeit: achte auf das Kreuz.\n\nAufgabe: bemerke Schwankungen in der Helligkeit und drücke die Zeigefinger-Taste.\n\ndrücke eine beliebige Taste um fortzufahren."
-instructD = "Aufmerksamkeit: keine besondere Aufmerksamkeit (nur die Augen bleiben mittig).\n\nAufgabe: zähle innerlich rückwärts von 700 (also 699 - 698 - 697 usw.) am Ende sagst Du uns, bei welcher Zahl Du gelandet bist.\n\ndrücke eine beliebige Taste um fortzufahren."
+print("Monitor fps: "+str(monitor_fps))
+print("Beamer fps:  "+str(beamer_fps))
+print("Combined fps: "+str(combined_fps))
+
+instructA = "Aufmerksamkeit:\nAchte genau auf die Töne (die Augen bleiben auf dem Kreuz).\n\nAufgabe:\nBemerke Schwankungen in der Lautstärke und drücke die Zeigefinger-Taste.\n\n\n\n\nDrücke eine beliebige Taste um fortzufahren."
+instructB = "Aufmerksamkeit:\nAchte genau auf das Kreuz, NICHT auf die Töne.\n\nAufgabe:\nBemerke Schwankungen in der Helligkeit und drücke die Zeigefinger-Taste.\n\n\n\nDrücke eine beliebige Taste um fortzufahren."
+instructC = "Aufmerksamkeit:\nAchte auf das Kreuz.\n\nAufgabe:\nBemerke Schwankungen in der Helligkeit und drücke die Zeigefinger-Taste.\n\n\n\nDrücke eine beliebige Taste um fortzufahren."
+instructD = "Aufmerksamkeit:\nKeine besondere Aufmerksamkeit (nur die Augen bleiben mittig).\n\nAufgabe:\nZähle innerlich rückwärts von 700 (also 699 - 698 - 697 usw.) am Ende sagst Du uns, bei welcher Zahl Du gelandet bist.\n\n\n\nDrücke eine beliebige Taste um fortzufahren."
 
 if use_parport:
     port = parallel.ParallelPort(address="/dev/parport0")
@@ -472,45 +463,51 @@ else:
     port = -1
 
 ht = HearTest(sound_name_list,hear_keys,ops,quorum,
-             monitor_idx=1, beamer_idx=0,beamer_fps=beamer_fps,
+             monitor_idx=monitor_idx, beamer_idx=beamer_idx,beamer_fps=monitor_fps,
              monitor_fps=monitor_fps,practice=0)
 pt = HearTest(sound_name_list,hear_keys,practice_ops,quorum,
-             monitor_idx=1, beamer_idx=0,monitor_fps=monitor_fps,
-             beamer_fps=beamer_fps,practice=1)
+             monitor_idx=monitor_idx, beamer_idx=beamer_idx,monitor_fps=monitor_fps,
+             beamer_fps=monitor_fps,practice=1)
 
 htv = HTestVerkehr(ht,pt,over_thresh=50)
-sounddata = [htv.go()] # make it a list so it can be put in other lists without making multiple copies 
+sounddata = htv.go()
+if sounddata == -1:
+    sys.exit()
+sounddata = [sounddata] # make it a list so it can be put in other lists without making multiple copies 
 params = {}
 params["a"]= {"sounddata":sounddata,"audschwank":"audschwank","visschwank":"empty",
                "torespond":"audschwank","keys":keys,"play_len":play_len,"monitor_idx":monitor_idx,
                "beamer_idx":beamer_idx,"name":"Audio modulations only","port":port,
                "beamer_fps":beamer_fps,"aud_schw_len":aud_schw_len,"id_trig":10,
-                "instruct":instructA,"monitor_fps":monitor_fps}
+                "instruct":instructA,"monitor_fps":monitor_fps,"combined_fps":combined_fps}
 params["b"]= {"sounddata":sounddata,"audschwank":"audadd","visschwank":"visselten",
                "keys":keys,"play_len":play_len,"monitor_idx":monitor_idx,"port":port,
                "torespond":"visselten","beamer_idx":beamer_idx,"name":"Infrequent visual modulations, ignore audio",
                "beamer_fps":beamer_fps,"aud_schw_len":aud_schw_len,"id_trig":20,
-               "schw_or_add":"add","instruct":instructB,"monitor_fps":monitor_fps}
+               "schw_or_add":"add","instruct":instructB,"monitor_fps":monitor_fps,
+               "combined_fps":combined_fps}
 params["c"]= {"sounddata":sounddata,"audschwank":"empty","visschwank":"visschwank",
                "torespond":"visschwank","keys":keys,"play_len":play_len,"monitor_idx":monitor_idx,
                "beamer_idx":beamer_idx,"name":"Visual modulations only","port":port,
                "beamer_fps":beamer_fps,"aud_schw_len":aud_schw_len,"id_trig":30,
-                "instruct":instructC,"monitor_fps":monitor_fps}
+                "instruct":instructC,"monitor_fps":monitor_fps,"combined_fps":combined_fps}
 params["d"]= {"sounddata":sounddata,"audschwank":"empty","visschwank":"empty",
                "torespond":"empty","keys":keys,"play_len":play_len,"monitor_idx":monitor_idx,"port":port,
                "beamer_idx":beamer_idx,"name":"No modulations, count backward.",
                "beamer_fps":beamer_fps,"aud_schw_len":aud_schw_len,"id_trig":40,
-                "instruct":instructD,"monitor_fps":monitor_fps}
+                "instruct":instructD,"monitor_fps":monitor_fps,"combined_fps":combined_fps}
 params["i"]= {"sounddata":sounddata,"audschwank":"audprac","visschwank":"empty",
                "torespond":"audprac","keys":keys,"play_len":15,"monitor_idx":monitor_idx,
                "beamer_idx":beamer_idx,"name":"Practice round: audio","port":port,
                "beamer_fps":beamer_fps,"aud_schw_len":aud_schw_len,"id_trig":50,
-               "practice":1,"instruct":instructA,"monitor_fps":monitor_fps}
+               "practice":1,"instruct":instructA,"monitor_fps":monitor_fps,
+               "combined_fps":combined_fps}
 params["j"]= {"sounddata":sounddata,"audschwank":"empty","visschwank":"visprac",
                "torespond":"visprac","keys":keys,"play_len":15,"monitor_idx":monitor_idx,
                "beamer_idx":beamer_idx,"name":"Practice round: visual","port":port,
                "beamer_fps":beamer_fps,"aud_schw_len":aud_schw_len,"id_trig":60,
-               "practice":1,"instruct":instructC,"monitor_fps":monitor_fps}
+               "practice":1,"instruct":instructC,"monitor_fps":monitor_fps,
+               "combined_fps":combined_fps}
           
 # handle command line arguments
 parser = argparse.ArgumentParser(monitor_idx,beamer_idx,monitor_fps,beamer_fps)
@@ -526,7 +523,7 @@ if not all([x in ["i","j"] for x in prac_order]):
     raise ValueError("All practice blocks must be i or j - lowercase.")
 if opt.rest:
     blo = RestingState(monitor_idx,beamer_idx,monitor_fps=monitor_fps,
-                       beamer_fps=beamer_fps,port=port,length=5)
+                       beamer_fps=beamer_fps,port=port,length=180)
     blo.go()
     print("hi")
 for p in prac_order:

@@ -130,15 +130,12 @@ class HearTest():
         beamer = None
         monitor = visual.Window(size=self.monsize,color=self.back_color,screen=monitor_idx,
                                 winType="pyglet",useFPO=False,waitBlanking=False)
-        if not monitor_fps:
-            monitor_fps = np.round(1/monitor.monitorFramePeriod).astype(int)
-            print("Monitor fps: " + str(monitor_fps))
+       
+        print("Monitor fps: " + str(monitor_fps))
         if beamer_idx > -1:    
             beamer = visual.Window(size=self.beamsize,color=back_color,screen=beamer_idx,
                                    winType="pyglet",useFPO=False,waitBlanking=False)
-            if not beamer_fps:
-                beamer_fps = np.round(1/beamer.monitorFramePeriod).astype(int)
-                print("Beamer fps: "+ str(beamer_fps))
+            print("Beamer fps: "+ str(beamer_fps))
         
         visobjs = {}
         beamobjs = {}
@@ -430,6 +427,8 @@ class HTestVerkehr():
         self.Threshs = thresh_results
     def Proceed_callback(self):
         self.quit = 1
+    def full_quit(self):
+         self.quit = -1
     def master_init(self):
         self.master = Tk()
         ht_butt = Button(self.master,text="Hearing Test",command=self.HTest_callback,height=12, width=12)
@@ -441,12 +440,16 @@ class HTestVerkehr():
         lt_butt.pack(side="left")
         quit_butt.pack(side="left")
         self.master.title("Hearing Test")
+        self.master.protocol("WM_DELETE_WINDOW",self.full_quit)
     
     def go(self):
         self.master_init()
         while not self.quit:
             self.master.update()
-        self.master.destroy()
+        if self.quit:
+            self.master.destroy()
+        if self.quit == -1:
+            return self.quit
             
         sounds = {}
         for snd in self.Threshs:
