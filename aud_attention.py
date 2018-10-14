@@ -434,7 +434,7 @@ ops = [40,20,10,5,2.5]
 practice_ops = [15,0,0]
 quorum = 2 # must have this many correct/incorrect to reduce/increase volume
 jitter_range = (0.8,2)
-use_parport = 1
+use_parport = 0
 keys = ["2","9"]
 
 play_len = 100
@@ -463,11 +463,11 @@ else:
     port = -1
 
 ht = HearTest(sound_name_list,hear_keys,ops,quorum,
-             monitor_idx=monitor_idx, beamer_idx=beamer_idx,beamer_fps=monitor_fps,
+             monitor_idx=monitor_idx, beamer_idx=beamer_idx,beamer_fps=beamer_fps,
              monitor_fps=monitor_fps,practice=0)
 pt = HearTest(sound_name_list,hear_keys,practice_ops,quorum,
              monitor_idx=monitor_idx, beamer_idx=beamer_idx,monitor_fps=monitor_fps,
-             beamer_fps=monitor_fps,practice=1)
+             beamer_fps=beamer_fps,practice=1)
 
 htv = HTestVerkehr(ht,pt,over_thresh=50)
 sounddata = htv.go()

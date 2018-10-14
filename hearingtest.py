@@ -42,7 +42,7 @@ class SoundWrap():
         self.data[:,side_idx] = self.operation(self.data[:,side_idx],**kwargs)
     
 def audio_load(sound_name):
-    nptypes = {np.dtype("int16"):32768,np.dtype("int32"):2147483648}
+    nptypes = {np.dtype("int16"):32768,np.dtype("int32"):2147483648,np.dtype("float32"):1}
     fs,data = wavfile.read(sound_name)
     aud_res = nptypes[data.dtype]
     if len(data.shape)==1:
@@ -85,7 +85,8 @@ class HearTest():
     def __init__(self,sound_name_list,key_presses,ops,quorum,
       play_duration=2, jitter_range=(0.5,2), practice=0,
       monitor_idx=0,beamer_idx=-1,monitor_fps=None,beamer_fps=None,
-      back_color=(0,0,0),text_color=(-1,-1,-1),beamsize=(1280,1024),monsize=(700,700)):
+      back_color=(0,0,0),text_color=(-1,-1,-1),beamsize=(1280,1024),
+      monsize=(700,700)):
         
         self.sound_name_list = sound_name_list
         self.key_presses = key_presses
@@ -404,17 +405,18 @@ class HearTest():
                           idx=thrsh[0],name=thrsh[1],right=thrsh[2],left=thrsh[3]))       
 
         monitor.close()
-        if not beamer_idx>-1:  # for some reason closing the beamer crashes it
+        if not beamer_idx==-1:  # for some reason closing the beamer crashes it
             beamer.close()
         return thresh_results
 
 class HTestVerkehr():    
-    def __init__(self,HTest,PracTest,over_thresh=55):
+    def __init__(self,HTest,PracTest,over_thresh=55,apply_avg_to=[]):
         self.HTest = HTest
         self.PracTest = PracTest
         self.Threshs = [[s_idx, s, "0", "0"] for s_idx,s in enumerate(HTest.sound_name_list)]        
         self.over_thresh = over_thresh   
         self.quit = 0
+        self.apply_avg_to=apply_avg_to
     def HTest_callback(self):
         self.Threshs = self.HTest.go()
     def PTest_callback(self):
@@ -452,12 +454,21 @@ class HTestVerkehr():
             return self.quit
             
         sounds = {}
-        for snd in self.Threshs:
+        incrs = [[],[]]
+        for snd in self.Threshs:      
             data = audio_load(snd[1])
             for i_idx in range(2):
-                incr = 0 if float(snd[2+i_idx])+self.over_thresh > 0 else float(snd[2+i_idx])+self.over_thresh
+                incr = 0 if float(snd[2+i_idx])+self.over_thresh > 0 else float(snd[2+i_idx])+self.over_thresh            
+                incrs[i_idx].append(incr)
+                if not self.apply_avg_to:
+                    data[:,i_idx] = incr_dcb(data[:,i_idx],dcb_delta=incr,direction=1)
+                    sounds[snd[1]] = data.copy(order="C")        
+        for snd in self.apply_avg_to:
+            data = audio_load(snd)
+            for i_idx in range(2):
+                incr = np.mean(incrs[i_idx])
                 data[:,i_idx] = incr_dcb(data[:,i_idx],dcb_delta=incr,direction=1)
-            sounds[snd[1]] = data.copy(order="C")
+                sounds[snd] = data.copy(order="C")
         return sounds
         
         
