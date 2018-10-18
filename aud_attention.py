@@ -100,6 +100,8 @@ class TriggerSet():
             return
         else:
             port.setData(0)
+    def read_val(self):
+        return port.readData()
         
 class RestingState():
     
@@ -350,8 +352,8 @@ class Block():
             a_next = aschw.pop(0) if aschw else np.inf
             v_next = vschw.pop(0) if vschw else np.inf
             t_next = toresp.pop(0) if toresp else np.inf
-            aud_schw_time = 0
-            vis_schw_time = 0
+            aud_schw_time = np.nan
+            vis_schw_time = np.nan
             beg_time = time.perf_counter()
             while (time.perf_counter()-beg_time) < self.play_len:
                 now = (time.perf_counter()-beg_time)*1000
@@ -389,11 +391,17 @@ class Block():
                             beam_disp["feedback"].visobj.text = "Falsch!"
                             beam_disp["feedback"].color = col_anims["falsch"].copy()                        
                         event.clearEvents()  
-                if now > aud_schw_time and now > vis_schw_time:
-                    if self.port:
-                        self.port.set_val(sound_idx+1)
-                    panel_disp["status"].text = "Subject is receiving stimuli..."
-                    panel_disp["status"].color = self.text_color
+                
+                if not all(np.isnan((aud_schw_time,vis_schw_time))):
+                    if now > aud_schw_time:
+                        aud_schw_time = np.nan    
+                    if now > vis_schw_time:
+                        vis_schw_time = np.nan
+                    if all(np.isnan((aud_schw_time,vis_schw_time))):
+                        if self.port:
+                            self.port.set_val(sound_idx+1)
+                        panel_disp["status"].text = "Subject is receiving stimuli..."
+                        panel_disp["status"].color = self.text_color
                     
                 self.draw_visobjs(beam_disp)
                 self.draw_visobjs(panel_disp)
@@ -434,7 +442,7 @@ ops = [40,20,10,5,2.5]
 practice_ops = [15,0,0]
 quorum = 2 # must have this many correct/incorrect to reduce/increase volume
 jitter_range = (0.8,2)
-use_parport = 0
+use_parport = 1
 keys = ["2","9"]
 
 play_len = 100
