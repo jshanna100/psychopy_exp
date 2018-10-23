@@ -433,6 +433,7 @@ class HTestVerkehr():
          self.quit = -1
     def master_init(self):
         self.master = Tk()
+        self.master.geometry("+0+0")
         ht_butt = Button(self.master,text="Hearing Test",command=self.HTest_callback,height=12, width=12)
         pt_butt = Button(self.master,text="Practice",command=self.PTest_callback,height=12, width=12)
         lt_butt = Button(self.master,text="Load thresholds",command=self.LoadThresh_callback,height=12, width=12)

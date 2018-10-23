@@ -136,8 +136,12 @@ class RestingState():
         panel_disp = {}
         panel_disp["title"] = visual.TextStim(win=monitor,text="Resting State",
                   pos=(-0.8,0.8),height=0.07,color=self.text_color,alignHoriz="left")
-        panel_disp["progress"] = visual.TextStim(win=monitor,text="Remaining: ",
+        panel_disp["progress"] = visual.TextStim(win=monitor,text="Press p to start resting state",
           pos=(-0.8,0.65),height=0.09,color=self.text_color,alignHoriz="left")
+        
+        while "p" not in event.getKeys(["p"]):
+            self.draw_visobjs(panel_disp)
+            monitor.flip()
         
         beam_disp = {}
         beam_disp["fixation"] = visual.TextStim(win=beamer,text="+",color=(1,1,1))
@@ -477,7 +481,7 @@ pt = HearTest(sound_name_list,hear_keys,practice_ops,quorum,
              monitor_idx=monitor_idx, beamer_idx=beamer_idx,monitor_fps=monitor_fps,
              beamer_fps=beamer_fps,practice=1)
 
-htv = HTestVerkehr(ht,pt,over_thresh=50)
+htv = HTestVerkehr(ht,pt,over_thresh=55)
 sounddata = htv.go()
 if sounddata == -1:
     sys.exit()
@@ -529,21 +533,21 @@ if not all([x in ["a","b","c","d"] for x in block_order]):
     raise ValueError("All blocks must be a,b,c, or d - lowercase.")
 if not all([x in ["i","j"] for x in prac_order]):
     raise ValueError("All practice blocks must be i or j - lowercase.")
-if opt.rest:
-    blo = RestingState(monitor_idx,beamer_idx,monitor_fps=monitor_fps,
-                       beamer_fps=beamer_fps,port=port,length=180)
-    blo.go()
-    print("hi")
 for p in prac_order:
     blo = Block(**params[p])
     blo.go()
     del blo
+if opt.rest:
+    blo = RestingState(monitor_idx,beamer_idx,monitor_fps=monitor_fps,
+                       beamer_fps=beamer_fps,port=port,length=180)
+    blo.go()
 results = []
 for b in block_order:
     blo = Block(**params[b])
     results += blo.go()
     now = datetime.datetime.now()
-    temp_filename = "temp_"+b+".txt"
+    temp_filename = "tempfiles/temp_{d}.{m}.{y}_{block}.txt".format(
+            d=now.day,m=now.month,y=now.year,block=b)
     with open(temp_filename,"w") as file:
         file.write("Subject {sub}, recorded on {d}.{m}.{y}, {h}:{mi}\n".format(
           sub=temp_filename[:-4],d=now.day,m=now.month,y=now.year,h=now.hour,mi=now.minute))
@@ -565,7 +569,3 @@ if filename:
            file.write("{idx}\t{block}\t{name}\t{laut}\t{angenehm}\n".format(
              idx=res[0],block=res[1],name=res[2],laut=res[3][0],angenehm=res[3][1]))       
             
-            
-            
-        
-        
