@@ -163,6 +163,13 @@ class RestingState():
             now = time.perf_counter()
         core.wait(0.5)
         self.port.reset()
+        
+        panel_disp["progress"] = visual.TextStim(win=monitor,text="Press p to proceed.",
+          pos=(-0.8,0.65),height=0.09,color=self.text_color,alignHoriz="left")
+        while "p" not in event.getKeys(["p"]):
+            self.draw_visobjs(panel_disp)
+            monitor.flip()
+        
         monitor.close()
         beamer.close()
 
