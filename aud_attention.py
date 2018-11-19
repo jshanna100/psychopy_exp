@@ -456,7 +456,7 @@ jitter_range = (0.8,2)
 use_parport = 1
 keys = ["2","9"]
 
-play_len = 100
+play_len = 70
 monitor_idx = 0
 beamer_idx = 1
 aud_schw_len = 0.5

@@ -16,7 +16,7 @@ def reihe_gen(time,n_schw_rang,min_dist,max_dist,other_set=0):
             if other_set is not 0:
                 if np.any(abs(other_set-onsets[o])<min_dist):
                     time_comp[o_idx] = 0
-                
+
         if np.all(time_comp):
             onsets.remove(0)
             onsets.remove(time)
@@ -29,8 +29,9 @@ sound_name_list = ["4000Hz.wav","4000_cheby.wav","4000_fftf.wav","6000Hz.wav",
 
 schwank = {}
 for s in sound_name_list:
-    schwank[s] = np.array(reihe_gen(100000,(18,19),1500,8500,other_set=0))
+    schwank[s] = np.array(reihe_gen(70000,(10,11),2500,8500,other_set=0))
+    print(s)
     #schwank[s] = np.empty(0)
-    
-with open("visprac","wb") as f:
+
+with open("audprac","wb") as f:
     pickle.dump(schwank,f)
